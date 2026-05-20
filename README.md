@@ -1,6 +1,6 @@
 # Meridian — Agent Context and Memory System
 
-**Version:** 4.3  
+**Version:** 4.4  
 **Publisher:** TableStakes LLC  
 **License:** Apache 2.0
 
@@ -101,6 +101,7 @@ There is no required minimum. All parts of Meridian work on their own.
 | Version | Changes |
 |---|---|
 | 4.3 | Initial public release. Bootstrap, seed history, weight system, skill routing, session lifecycle. |
+| 4.4 | Index-driven conflict detection for skill authoring. BAD/GOOD negative anchor rule for skills. |
 
 ---
 

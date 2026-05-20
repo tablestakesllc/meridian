@@ -1,7 +1,7 @@
-# Meridian Agent Context and Memory System — Bootstrap Prompt (v4.3)
+# Meridian Agent Context and Memory System — Bootstrap Prompt (v4.4)
 
 > **How to use this file:**
-> Give this document to a fresh agent on any new repository to set up Meridian v4.3
+> Give this document to a fresh agent on any new repository to set up Meridian v4.4
 > from scratch. The agent should follow the steps in order. No prior Meridian knowledge
 > is required. All schemas and templates are included inline.
 
@@ -9,7 +9,7 @@
 
 ## What You Are Setting Up
 
-You are setting up the **Meridian Agent Context and Memory System (v4.3)** in this
+You are setting up the **Meridian Agent Context and Memory System (v4.4)** in this
 repository. Meridian is a file-native knowledge grounding system for AI coding agents.
 It has no server, no vector database, and no external API dependencies. Everything lives
 in the repository.
@@ -73,6 +73,12 @@ Verify it runs:
 ```bash
 python tools/weight_memory.py --help
 ```
+
+> **Note:** On systems where `python` is not aliased (common on modern Linux), use
+> `python3` in place of `python` throughout this guide. To make the script directly
+> invocable, add `#!/usr/bin/env python3` as the first line of `weight_memory.py` and
+> run `chmod +x tools/weight_memory.py`, then substitute `./tools/weight_memory.py`
+> for all `python tools/weight_memory.py` calls.
 
 ---
 
@@ -244,7 +250,7 @@ Running log of user prompts per session. Start with:
 
 ## Session: <YYYY-MM-DD>
 ### Context at Session Start
-Meridian v4.3 initial setup.
+Meridian v4.4 initial setup.
 
 ### Prompts
 
@@ -277,6 +283,11 @@ python tools/weight_memory.py --seed
 # Generate the initial L1_CONTEXT.md from current weights
 python tools/weight_memory.py --generate-l1
 ```
+
+> **Note:** On a fresh install where `weights.default.yaml` starts with `blocks: []`,
+> `--seed` will report "Seeded 0 new block(s)". This is expected — the command
+> succeeded and your weights file is initialized. Blocks are added to the defaults
+> file as you create them.
 
 Verify both files exist:
 - `.agent/weights.yaml`
@@ -348,13 +359,13 @@ Register both in `.github/copilot-instructions.md` under the skill dispatch tabl
 ```yaml
 ---
 name: meridian-v4
-description: 'Meridian v4.3 memory system operations: adding blocks, weight_memory.py session-end run, L1 promotion/demotion, per-developer weights.yaml, weights.default.yaml, L1_CONTEXT.md generation, context_swap.json, MEMORY_INDEX.yaml block registration, deciding where new knowledge goes. Use when: adding new block, running weight update, block tier change, context_swap, MEMORY_INDEX edit, knowledge triage, first-boot seed, check-defaults, migrate.'
+description: 'Meridian v4.4 memory system operations: adding blocks, weight_memory.py session-end run, L1 promotion/demotion, per-developer weights.yaml, weights.default.yaml, L1_CONTEXT.md generation, context_swap.json, MEMORY_INDEX.yaml block registration, deciding where new knowledge goes. Use when: adding new block, running weight update, block tier change, context_swap, MEMORY_INDEX edit, knowledge triage, first-boot seed, check-defaults, migrate.'
 ---
 ```
 
-# Meridian v4.3 Memory System — Operations Reference
+# Meridian v4.4 Memory System — Operations Reference
 
-This skill covers **operating** the v4.3 memory system. For system design rationale, see
+This skill covers **operating** the v4.4 memory system. For system design rationale, see
 the Always-On Standards section of `copilot-instructions.md`.
 
 ---
@@ -492,6 +503,12 @@ but has no annotation in any source file, the script prints `ACTION REQUIRED`.
                    # Omitting creates a schema inconsistency — always include the field.
   status: active   # active | deprecated
 ```
+
+> **Integrity rule:** Every active L2 block must have a `skill` value pointing to an
+> existing SKILL.md file, or its weight must be >= 8.0 (L1, auto-loaded). A block with
+> `skill: null` and weight < 8.0 will appear as "Orphaned L2" in the integrity report
+> at every session-end weight update. If a block is universally applicable and has no
+> natural trigger skill, promote it to L1 from the start.
 
 3. **Add to `agent_docs/weights.default.yaml`**:
 
@@ -710,11 +727,28 @@ before proceeding.
 A conflict is when two or more skills or context files describe the same topic with
 different rules, values, or procedures.
 
-**How to check:**
-- Search for the core noun/keyword of the new/changed content across all skill files
-  and `copilot-instructions.md`.
-- Compare any overlapping sections for contradictions (different thresholds, opposite
-  instructions, incompatible patterns).
+**Step 1a — Index-driven scope (always run first):**
+
+Open `agent_docs/MEMORY_INDEX.yaml`. For the new or changed block, read its `domain`,
+`tags`, `depends`, and `skill` fields. Build the affected skill set:
+
+1. Find all blocks in the index that share the same `domain`. Collect their `skill`
+   values (non-null only).
+2. Walk the `depends` list. For each dep block, also collect its `skill` value.
+3. The union of those `skill` values is the **affected skill set** — the only skills
+   whose content could realistically conflict with the change.
+4. Read each skill in the affected set and scan for content that contradicts the
+   new/changed block.
+
+This scopes the search precisely. You do not need to scan all skill files for every
+change.
+
+**Step 1b — Free-form scan (for L1 block changes):**
+
+If the changed content is in an L1 block (weight >= 8.0), also grep across all skill
+files for the core noun/keyword of the changed rule. L1 blocks establish operational
+rules that skills document procedures for — a new L1 rule can conflict with a skill's
+documented commands or thresholds even when the index `domain` does not overlap.
 
 **Action:** Present conflicting excerpts side-by-side. Recommend which should be
 authoritative (usually the more specific/recent one). Wait for user decision before
@@ -831,6 +865,40 @@ file names — not generic verbs like "create" or "update."
 
 ---
 
+### Skill Authoring Standards — BAD/GOOD Negative Anchor Rule
+
+**When documenting a required shell command, invocation form, flag syntax, or file
+operation:** always include a negative example alongside the positive one.
+
+**Why this matters:** LLM-based coding agents have strong trained priors for common
+shell patterns. A positive-only rule ("run it directly") is frequently overridden by
+pattern completion at generation time. An explicit negative anchor suppresses the wrong
+prior by making the failure mode visible.
+
+**Required for any rule that:**
+- Names a specific script invocation, executable, or command prefix
+- Prohibits a flag, wrapper, or suffix
+- Requires a specific quoting style or path form
+- Forbids a common shortcut that pattern completion will otherwise generate
+
+**Format:**
+```
+BAD:  `<wrong form>` — <one-line reason it fails>
+GOOD: `<correct form>`
+```
+
+**Example — direct script invocation:**
+```
+BAD:  `bash ./tools/my_script.sh` — bypasses the shebang; breaks if bash not on PATH
+GOOD: `./tools/my_script.sh`
+```
+
+**Retrofit rule:** If you are editing a skill section that contains a positive-only
+command pattern rule and that section lacks a BAD/GOOD block, add one before committing
+the edit. Do not defer it.
+
+---
+
 ## Appendix C: `weight_memory.py` Rebuild Specification
 
 > Copy the following content into `.github/skills/meridian-v4/REBUILD_SPEC.md`.
@@ -849,7 +917,7 @@ After implementing, keep this file in sync with any script changes.
 
 ### Purpose
 
-Session-end weight update script for the Meridian v4.3 agent context and memory system.
+Session-end weight update script for the Meridian v4.4 agent context and memory system.
 Updates block weights in `agent_docs/MEMORY_INDEX.yaml` based on session usage, applies
 decay to unloaded blocks, reclassifies tiers, and runs integrity and health checks.
 
@@ -1077,7 +1145,7 @@ Write the comment header first, then `yaml.dump`:
 
 ```python
 header = (
-    "# Meridian Agent Memory Index — v4.3\n"
+    "# Meridian Agent Memory Index — v4.4\n"
     "#\n"
     "# Single source of truth for all memory blocks: weights, tiers, and dependencies.\n"
     "# Do NOT edit manually during a session — updated by the agent at session-end.\n"
@@ -1090,7 +1158,3 @@ with path.open("w", encoding="utf-8") as f:
     f.write(header)
     yaml.dump(data, f, default_flow_style=False, allow_unicode=True, sort_keys=False)
 ```
-
----
-
-Copyright 2026 TableStakes LLC. Licensed under the Apache License, Version 2.0.
