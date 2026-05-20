@@ -66,8 +66,8 @@ are where conventions matter most and where agents are most likely to make mista
 git log --all --name-only --format='' | grep -v '^$' \
   | sort | uniq -c | sort -rn | head -30
 
-# Directories with the most commits touching them
-git log --all --name-only --format='' | grep -v '^$' \
+# Directories with the most commits touching them (excludes top-level files)
+git log --all --name-only --format='' | grep '/' \
   | sed 's|/[^/]*$||' | sort | uniq -c | sort -rn | head -20
 
 # Files that are almost always changed together (co-change pairs)
@@ -114,6 +114,10 @@ git log --oneline -500
 # Commits that mention fixes, bugs, regressions, or breaking changes
 git log --oneline --all --grep="fix\|bug\|regression\|breaking\|revert\|hotfix" \
   -100
+
+# Conventional commit breaking-change marker (! after scope)
+# The keyword grep above does not match `fix(config)!:` — this catches it
+git log --oneline --all --grep="!" | head -20
 
 # Commits that mention specific architectural areas
 git log --oneline --all --grep="refactor\|migrate\|upgrade\|deprecat" -50
@@ -188,6 +192,12 @@ change agent behavior should be cut.
 Add each block to the `blocks:` list using the schema from MERIDIAN_BOOTSTRAP.md.
 Assign `seed_weight: 5.0` to all blocks in weights.default.yaml.
 
+> **Elevated seeds:** If onboarding an existing production codebase, identify 2–3
+> blocks that are critical to nearly every agent task (e.g., the primary plugin
+> registration pattern, the project's test helper contract). Seed those at `8.5`
+> instead of `5.0`. This puts real grounding into L1 immediately rather than waiting
+> for organic weight accumulation over several sessions.
+
 ### In MEMORY.md
 
 Add each block as a numbered section. Use the annotation format:
@@ -233,7 +243,3 @@ For each block you generated, answer these two questions:
 
 If the answer to question 1 is "probably not" or question 2 is "it's generic" — cut the
 block. The goal is grounded, specific, repository-earned knowledge. Not a tutorial.
-
----
-
-Copyright 2026 TableStakes LLC. Licensed under the Apache License, Version 2.0.
