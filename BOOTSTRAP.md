@@ -1,7 +1,7 @@
-# Meridian Agent Context and Memory System — Bootstrap Prompt (v4.4)
+# Meridian Agent Context and Memory System — Bootstrap Prompt (v4.5)
 
 > **How to use this file:**
-> Give this document to a fresh agent on any new repository to set up Meridian v4.4
+> Give this document to a fresh agent on any new repository to set up Meridian v4.5
 > from scratch. The agent should follow the steps in order. No prior Meridian knowledge
 > is required. All schemas and templates are included inline.
 
@@ -9,7 +9,7 @@
 
 ## What You Are Setting Up
 
-You are setting up the **Meridian Agent Context and Memory System (v4.4)** in this
+You are setting up the **Meridian Agent Context and Memory System (v4.5)** in this
 repository. Meridian is a file-native knowledge grounding system for AI coding agents.
 It has no server, no vector database, and no external API dependencies. Everything lives
 in the repository.
@@ -42,14 +42,15 @@ agent_docs/
     weights.yaml               # per-developer live weights — gitignored
     context_swap.json          # session checkpoint — gitignored
 
-tools/
-    weight_memory.py           # weight manager script — committed
-
-.github/
-    copilot-instructions.md    # auto-loaded agent instructions — committed
-    skills/                    # domain skill files — committed
+.agents/
+    skills/                    # domain skill files — committed (Open Agent Skills standard path)
         <domain>/
             SKILL.md
+        meridian-v4/
+            SKILL.md
+            weight_memory.py   # weight manager script — committed
+
+<agent-auto-load-file>         # agent-specific session instructions (e.g. .github/copilot-instructions.md)
 ```
 
 Add to `.gitignore`:
@@ -62,8 +63,13 @@ agent_docs/L1_CONTEXT.md
 
 ## Step 1: Copy weight_memory.py
 
-Copy `tools/weight_memory.py` from an existing Meridian installation into your `tools/`
-directory. This script manages weight updates, L1 generation, seeding, and migration.
+> **Upgrading from an earlier version?** Skip to the **Upgrade Log** section at the
+> end of this file. Find the entry matching your current version and apply the steps
+> listed there before continuing with setup.
+
+Copy `weight_memory.py` from an existing Meridian installation into
+`.agents/skills/meridian-v4/weight_memory.py`.
+This script manages weight updates, L1 generation, seeding, and migration.
 Do not modify it — it is the engine.
 
 If no existing installation is available, use **Appendix C** (included at the end of
@@ -71,14 +77,11 @@ this document) to have an agent rebuild the script from the specification.
 
 Verify it runs:
 ```bash
-python tools/weight_memory.py --help
+python .agents/skills/meridian-v4/weight_memory.py --help
 ```
 
 > **Note:** On systems where `python` is not aliased (common on modern Linux), use
-> `python3` in place of `python` throughout this guide. To make the script directly
-> invocable, add `#!/usr/bin/env python3` as the first line of `weight_memory.py` and
-> run `chmod +x tools/weight_memory.py`, then substitute `./tools/weight_memory.py`
-> for all `python tools/weight_memory.py` calls.
+> `python3` in place of `python` throughout this guide.
 
 ---
 
@@ -93,7 +96,7 @@ Schema for each block entry:
 - id: <kebab-case-unique-id>
   mem: §<N>                        # section number in MEMORY.md
   domain: <domain-string>          # e.g. testing, cicd, frontend, db, security
-  skill: <skill-name>              # matches a directory in .github/skills/
+  skill: <skill-name>              # matches a directory in .agents/skills/
   depends: []                      # list of block IDs this block depends on
   tags:
     - <keyword>                    # trigger keywords for dispatch
@@ -146,29 +149,43 @@ at or above 8.0 after sustained use.
 
 ## Step 4: Create SESSION_INIT.md
 
-This file is read at the start of every agent session. It must contain:
+This file is the single source of truth for session bootstrap. It is agent-agnostic:
+any agent reading this file follows the same procedure regardless of how it was invoked.
+The agent-native pre-load file (e.g. `copilot-instructions.md`) should contain only a
+single pointer: "read `agent_docs/SESSION_INIT.md` and run the Session-Start Checklist."
 
-1. A **Current State block** at the top (agent-maintained, updated at session close):
+`SESSION_INIT.md` must contain three sections in order:
+
+**1. Current State block** (agent-maintained, updated at session close):
 ```markdown
 ## Current State (Agent-Maintained)
 > Written by the agent at session close.
 
-**Active branch:** `<branch>`
+**Last branch:** `<branch>`
 **Last commit:** `<hash>` — <description>
 **Next priority item:** <item>
 **Open blockers:** <None or description>
 **Last updated:** <YYYY-MM-DD PDT>
 ```
 
-2. A **Session-Start Checklist** with these steps in order:
-   - Read the Current State block
-   - Check `.agent/weights.yaml` — if missing, run `python tools/weight_memory.py --seed`
-   - Check `agent_docs/L1_CONTEXT.md` — if missing, run `python tools/weight_memory.py --generate-l1`
-   - Read `agent_docs/L1_CONTEXT.md` in full
-   - Read the most recent session entry in `agent_docs/PROMPT_LOG.md`
-   - Run `git branch --show-current` and apply branch rules
+**2. Session-Start Checklist** — structured like `SESSION_END.md`: numbered sections,
+imperative header, inline bash commands, and `[ ]` checkboxes. The checkbox format
+drives sequential step execution; the mandatory output line makes compliance observable.
 
-3. A **file map table** describing each Meridian file and whether it is committed or
+Required checklist steps (in order):
+   1. Read the Current State block — `[ ] Current State block read`
+   2. Load L1 Context — regenerate if missing, then read `agent_docs/L1_CONTEXT.md` in full — `[ ] L1_CONTEXT.md read in full`
+   3. Read most recent PROMPT_LOG session — `grep -n "^## Session:" agent_docs/PROMPT_LOG.md | tail -1` — `[ ] PROMPT_LOG session read`
+   4. Confirm branch — `git branch --show-current` — `[ ] Branch identified, rules applied`
+   5. Verify merge driver — `git config --local include.path` must output `../.gitconfig` — `[ ] Merge driver active`
+   6. Reset context swap — `printf '{}' > .agent/context_swap.json` — `[ ] context_swap.json reset`
+   7. Output confirmation line and open PROMPT_LOG entry — agent outputs:
+      `Bootstrap complete — SESSION_INIT ✓ | L1 ✓ | PROMPT_LOG ✓ | branch: <name> | merge driver ✓`
+
+End the checklist with an **Edge Cases** section for first-time setup (missing
+`weights.yaml` or `L1_CONTEXT.md`) so those paths stay out of the normal flow.
+
+**3. File map table** describing each Meridian file and whether it is committed or
    gitignored.
 
 ---
@@ -182,7 +199,7 @@ This file is the session close checklist. It must instruct the agent to:
 3. Update `agent_docs/PROMPT_LOG.md` with all prompts from the session
 4. Run the weight update script:
    ```bash
-   python tools/weight_memory.py \
+   python .agents/skills/meridian-v4/weight_memory.py \
        --used   "<comma-separated block IDs actively used>" \
        --loaded "<comma-separated block IDs loaded this session>" \
        --date   "YYYY-MM-DD"
@@ -239,37 +256,63 @@ they are no longer relevant.
 
 ## Step 7: Create PROMPT_LOG.md
 
-Running log of user prompts per session. Start with:
+Running log of user prompts per session. Append-only — new sessions are added at the bottom, oldest at top. Start with:
 
 ```markdown
 # <Project Name> — Prompt Log
 
-> Latest session at top. All times in US Pacific (PDT/PST).
+> **Format:** Append-only — sessions added at the bottom, oldest at top.
+> **Session header:** `## Session: YYYY-MM-DD HH:MM PDT — <git config user.name>`  
+> Run `git config user.name` at session start to get the name token.
+> **Reading:** Run `grep -n "^## Session:" PROMPT_LOG.md | tail -1` to get the most recent session line number, then read from there to end of file.
+> **Timezone:** All times in US Pacific (PDT/PST).
 
 ---
 
-## Session: <YYYY-MM-DD>
+## Session: <YYYY-MM-DD HH:MM PDT> — <git config user.name>
 ### Context at Session Start
-Meridian v4.4 initial setup.
+Meridian v4.5 initial setup.
 
 ### Prompts
 
 | Time (PDT) | Prompt | Commit |
 |---|---|---|
+| <YYYY-MM-DD HH:MM PDT> | Initial Meridian v4.5 setup | — |
 ```
 
 ---
 
-## Step 8: Create .github/copilot-instructions.md
+## Step 8: Create your agent’s auto-load instructions file
 
-This file auto-loads in every VS Code Copilot session. At minimum it must instruct the
-agent to:
+This file is loaded automatically by the agent at the start of every session. The
+filename and location are agent-specific:
 
-1. Read `agent_docs/SESSION_INIT.md` at session start
-2. Read `agent_docs/L1_CONTEXT.md` in full before any work
-3. Follow the SESSION_END checklist before closing
-4. Load skill files from `.github/skills/` when trigger keywords match
-5. Never commit directly to main or protected branches
+| Agent | Auto-load file |
+|---|---|
+| GitHub Copilot (VS Code) | `.github/copilot-instructions.md` |
+| Cursor | `.cursor/rules/` (one `.mdc` file per rule group) |
+| Claude Code | `CLAUDE.md` (repo root) |
+| Generic | Agent-configured path |
+
+**Keep this file minimal.** Its only job is to route the agent to `SESSION_INIT.md`.
+All bootstrap logic — L1 loading, PROMPT_LOG reading, branch confirmation, merge driver
+check, context swap reset — lives in the `SESSION_INIT.md` checklist, which is
+agent-agnostic and the single source of truth.
+
+The auto-load file must contain exactly one bootstrap instruction:
+
+```markdown
+## At the Start of Every New Conversation
+
+Read `agent_docs/SESSION_INIT.md` in full and run the Session-Start Checklist defined
+there. That checklist is the single source of truth for bootstrap — do not use a
+checklist defined in this file.
+```
+
+You may add agent-specific or project-specific content after the bootstrap pointer
+(branch rules, always-on standards, skill routing tables, etc.), but do not duplicate
+any step from the `SESSION_INIT.md` checklist here. Duplication creates two competing
+checklists that agents will conflate.
 
 ---
 
@@ -278,10 +321,10 @@ agent to:
 Run in order:
 ```bash
 # Initialize per-developer weights from the defaults file
-python tools/weight_memory.py --seed
+python .agents/skills/meridian-v4/weight_memory.py --seed
 
 # Generate the initial L1_CONTEXT.md from current weights
-python tools/weight_memory.py --generate-l1
+python .agents/skills/meridian-v4/weight_memory.py --generate-l1
 ```
 
 > **Note:** On a fresh install where `weights.default.yaml` starts with `blocks: []`,
@@ -299,7 +342,7 @@ Verify both files exist:
 
 Run a check-defaults pass to confirm the index and weights are in sync:
 ```bash
-python tools/weight_memory.py --check-defaults
+python .agents/skills/meridian-v4/weight_memory.py --check-defaults
 ```
 
 Output should report zero new blocks. If any are listed, run `--seed` again.
@@ -334,15 +377,15 @@ Meridian ships with two core skill files that teach the agent how to operate and
 the memory system. Create them from the content in Appendix A and B:
 
 ```bash
-mkdir -p .github/skills/meridian-v4
-mkdir -p .github/skills/meridian-skill-manager
+mkdir -p .agents/skills/meridian-v4
+mkdir -p .agents/skills/meridian-skill-manager
 ```
 
-- Copy **Appendix A** content → `.github/skills/meridian-v4/SKILL.md`
-- Copy **Appendix B** content → `.github/skills/meridian-skill-manager/SKILL.md`
-- Copy **Appendix C** content → `.github/skills/meridian-v4/REBUILD_SPEC.md`
+- Copy **Appendix A** content → `.agents/skills/meridian-v4/SKILL.md`
+- Copy **Appendix B** content → `.agents/skills/meridian-skill-manager/SKILL.md`
+- Copy **Appendix C** content → `.agents/skills/meridian-v4/REBUILD_SPEC.md`
 
-Register both in `.github/copilot-instructions.md` under the skill dispatch table:
+Register both in your agent’s auto-load instructions file under the skill dispatch table:
 
 | Condition | What to load |
 |---|---|
@@ -351,22 +394,22 @@ Register both in `.github/copilot-instructions.md` under the skill dispatch tabl
 
 ---
 
-## Appendix A: `.github/skills/meridian-v4/SKILL.md`
+## Appendix A: `.agents/skills/meridian-v4/SKILL.md`
 
-> Copy the following content into `.github/skills/meridian-v4/SKILL.md`. The YAML
+> Copy the following content into `.agents/skills/meridian-v4/SKILL.md`. The YAML
 > frontmatter block starts the file; the section ends at the "Appendix B" header below.
 
 ```yaml
 ---
 name: meridian-v4
-description: 'Meridian v4.4 memory system operations: adding blocks, weight_memory.py session-end run, L1 promotion/demotion, per-developer weights.yaml, weights.default.yaml, L1_CONTEXT.md generation, context_swap.json, MEMORY_INDEX.yaml block registration, deciding where new knowledge goes. Use when: adding new block, running weight update, block tier change, context_swap, MEMORY_INDEX edit, knowledge triage, first-boot seed, check-defaults, migrate.'
+description: 'Meridian v4.5 memory system operations: adding blocks, weight_memory.py session-end run, L1 promotion/demotion, per-developer weights.yaml, weights.default.yaml, L1_CONTEXT.md generation, context_swap.json, MEMORY_INDEX.yaml block registration, deciding where new knowledge goes. Use when: adding new block, running weight update, block tier change, context_swap, MEMORY_INDEX edit, knowledge triage, first-boot seed, check-defaults, migrate.'
 ---
 ```
 
-# Meridian v4.4 Memory System — Operations Reference
+# Meridian v4.5 Memory System — Operations Reference
 
-This skill covers **operating** the v4.4 memory system. For system design rationale, see
-the Always-On Standards section of `copilot-instructions.md`.
+This skill covers **operating** the v4.5 memory system. For system design rationale, see
+the Always-On Standards section of your agent’s auto-load instructions file.
 
 ---
 
@@ -380,14 +423,14 @@ the Always-On Standards section of `copilot-instructions.md`.
 | `agent_docs/MEMORY.md` | Raw wiki — every §N section ever recorded; never delete sections | Yes | When recording a new gotcha |
 | `.agent/weights.yaml` | Per-developer live weights — gitignored | No | Updated by `weight_memory.py` |
 | `.agent/context_swap.json` | Ephemeral per-commit state — gitignored | No | Written after each git commit |
-| `tools/weight_memory.py` | Weight manager script | Yes | Do not edit; run only |
+| `.agents/skills/meridian-v4/weight_memory.py` | Weight manager script | Yes | Do not edit; run only |
 
 ---
 
 ### Session-End Weight Update (required every session)
 
 ```bash
-python tools/weight_memory.py \
+python .agents/skills/meridian-v4/weight_memory.py \
   --used   "block-id-A,block-id-B" \
   --loaded "block-id-A,block-id-B,block-id-C" \
   --date   "YYYY-MM-DD"
@@ -414,7 +457,7 @@ After running, review stdout for:
 - `RECOMMENDATIONS` — new blocks in defaults not yet in your weights; run `--check-defaults`
 
 > **Rebuilding the script from scratch?** See Appendix C in this file, or read
-> `.github/skills/meridian-v4/REBUILD_SPEC.md` once created.
+> `.agents/skills/meridian-v4/REBUILD_SPEC.md` once created.
 
 ---
 
@@ -424,10 +467,10 @@ When `.agent/weights.yaml` doesn't exist (fresh clone, first session):
 
 ```bash
 # 1. Seed weights from maintainer defaults
-python tools/weight_memory.py --seed
+python .agents/skills/meridian-v4/weight_memory.py --seed
 
 # 2. If L1_CONTEXT.md also missing:
-python tools/weight_memory.py --generate-l1
+python .agents/skills/meridian-v4/weight_memory.py --generate-l1
 ```
 
 `--seed` creates `.agent/weights.yaml` from `agent_docs/weights.default.yaml`, populates
@@ -450,7 +493,7 @@ then regenerates L1 if any weights crossed 8.0.
 When a maintainer adds a new block to `weights.default.yaml`, contributors learn via:
 
 1. Automatic notice in `--used/--loaded` output: `RECOMMENDATIONS: N new block(s) in defaults`
-2. Manual check: `python tools/weight_memory.py --check-defaults`
+2. Manual check: `python .agents/skills/meridian-v4/weight_memory.py --check-defaults`
 
 Never auto-applies. Always a recommendation the developer accepts explicitly.
 
@@ -461,8 +504,8 @@ Never auto-applies. Always a recommendation the developer accepts explicitly.
 For repos currently on v4 (weights in `MEMORY_INDEX.yaml`):
 
 ```bash
-python tools/weight_memory.py --migrate --dry-run  # preview first
-python tools/weight_memory.py --migrate             # then run for real
+python .agents/skills/meridian-v4/weight_memory.py --migrate --dry-run  # preview first
+python .agents/skills/meridian-v4/weight_memory.py --migrate             # then run for real
 git rm --cached agent_docs/L1_CONTEXT.md           # untrack from git
 ```
 
@@ -480,7 +523,7 @@ their local clone.
 - Not manually editable (overwritten at next session-end)
 
 Block content is extracted from `<!-- block: <id> --> ... <!-- /block -->` annotations
-in `agent_docs/MEMORY.md` and `.github/skills/*/SKILL.md`. If a block is at L1 weight
+in `agent_docs/MEMORY.md` and `.agents/skills/*/SKILL.md`. If a block is at L1 weight
 but has no annotation in any source file, the script prints `ACTION REQUIRED`.
 
 ---
@@ -494,7 +537,7 @@ but has no annotation in any source file, the script prints `ACTION REQUIRED`.
 - id: <kebab-case-id>
   mem: §N          # MEMORY.md section number, or §0 if no entry yet
   domain: <domain> # cicd | db | frontend | security | deployment | observability | worker | api | design
-  skill: <skill-name>  # directory name in .github/skills/; null if none
+  skill: <skill-name>  # directory name in .agents/skills/; null if none
   depends: []      # block IDs that must co-load with this one
   tags: [tag1, tag2]
   summary: "One sentence: what the block covers and why it matters"
@@ -690,9 +733,9 @@ Do not manually inflate weights to suppress the warning.
 
 ---
 
-## Appendix B: `.github/skills/meridian-skill-manager/SKILL.md`
+## Appendix B: `.agents/skills/meridian-skill-manager/SKILL.md`
 
-> Copy the following content into `.github/skills/meridian-skill-manager/SKILL.md`.
+> Copy the following content into `.agents/skills/meridian-skill-manager/SKILL.md`.
 
 ```yaml
 ---
@@ -710,7 +753,7 @@ close.
 
 ### When This Skill Applies
 
-- Creating a new `.github/skills/*/SKILL.md`
+- Creating a new `.agents/skills/*/SKILL.md`
 - Editing an existing skill (content, triggers, frontmatter)
 - Adding or modifying a skill trigger row in `copilot-instructions.md`
 - SESSION_END — run the audit checklist below before committing docs
@@ -901,23 +944,23 @@ the edit. Do not defer it.
 
 ## Appendix C: `weight_memory.py` Rebuild Specification
 
-> Copy the following content into `.github/skills/meridian-v4/REBUILD_SPEC.md`.
-> This file is also the specification an agent follows to rebuild `tools/weight_memory.py`
+> Copy the following content into `.agents/skills/meridian-v4/REBUILD_SPEC.md`.
+> This file is also the specification an agent follows to rebuild `.agents/skills/meridian-v4/weight_memory.py`
 > from scratch if the script is missing or corrupted.
 
 # weight_memory.py — Rebuild Specification
 
-> **When to read this file:** Only when `tools/weight_memory.py` is missing, corrupted,
+> **When to read this file:** Only when `.agents/skills/meridian-v4/weight_memory.py` is missing, corrupted,
 > or needs to be rebuilt from scratch. For normal memory operations, use `SKILL.md`.
 
-This specification is the single source of truth for rebuilding `tools/weight_memory.py`.
+This specification is the single source of truth for rebuilding `.agents/skills/meridian-v4/weight_memory.py`.
 After implementing, keep this file in sync with any script changes.
 
 ---
 
 ### Purpose
 
-Session-end weight update script for the Meridian v4.4 agent context and memory system.
+Session-end weight update script for the Meridian v4.5 agent context and memory system.
 Updates block weights in `agent_docs/MEMORY_INDEX.yaml` based on session usage, applies
 decay to unloaded blocks, reclassifies tiers, and runs integrity and health checks.
 
@@ -926,18 +969,35 @@ decay to unloaded blocks, reclassifies tiers, and runs integrity and health chec
 ### File Location
 
 ```
-tools/weight_memory.py
+.agents/skills/meridian-v4/weight_memory.py
 ```
 
-`REPO_ROOT = Path(__file__).parent.parent`
-`INDEX_PATH = REPO_ROOT / "agent_docs" / "MEMORY_INDEX.yaml"`
+`REPO_ROOT` is resolved at import time by walking up from `__file__` until
+`agent_docs/MEMORY_INDEX.yaml` is found. This is cross-platform (pathlib),
+agent-agnostic, and survives script relocation or multi-root workspaces.
+
+```python
+def _find_repo_root() -> Path:
+    sentinel = Path("agent_docs") / "MEMORY_INDEX.yaml"
+    here = Path(__file__).resolve().parent
+    for candidate in [here, *here.parents]:
+        if (candidate / sentinel).exists():
+            return candidate
+    raise RuntimeError(
+        f"Cannot locate Meridian repo root from {here}. "
+        f"Expected to find '{sentinel}' in an ancestor directory."
+    )
+
+REPO_ROOT = _find_repo_root()
+INDEX_PATH = REPO_ROOT / "agent_docs" / "MEMORY_INDEX.yaml"
+```
 
 ---
 
 ### CLI Interface
 
 ```
-python tools/weight_memory.py \
+python .agents/skills/meridian-v4/weight_memory.py \
   --used   "block-a,block-b"            # blocks loaded AND actively used
   --loaded "block-a,block-b,block-c"    # superset: all blocks loaded
   --date   "YYYY-MM-DD"                 # session date (default: today)
@@ -1103,7 +1163,7 @@ Skip blocks where `tier == "L1"` or `status == "deprecated"`.
 
 For remaining blocks:
 - `skill` is null/None → add to `orphaned_l2` list
-- `skill` is set but `.github/skills/<skill>/SKILL.md` does not exist → add to
+- `skill` is set but `.agents/skills/<skill>/SKILL.md` does not exist → add to
   `missing_skill_file` list
 
 If issues found:
@@ -1114,7 +1174,7 @@ If issues found:
   FIX: assign each block to a skill in MEMORY_INDEX.yaml,
        or promote to L1 if it should auto-load every session.
   Blocks pointing to missing skill files (N):
-    block-id    → .github/skills/<skill>/SKILL.md  (not found)
+    block-id    → .agents/skills/<skill>/SKILL.md  (not found)
   FIX: create the missing skill file or correct the skill: field.
 ```
 
@@ -1145,16 +1205,204 @@ Write the comment header first, then `yaml.dump`:
 
 ```python
 header = (
-    "# Meridian Agent Memory Index — v4.4\n"
+    "# Meridian Agent Memory Index — v4.5\n"
     "#\n"
     "# Single source of truth for all memory blocks: weights, tiers, and dependencies.\n"
     "# Do NOT edit manually during a session — updated by the agent at session-end.\n"
     "#\n"
     "# APPLY WEIGHT UPDATES:\n"
-    "#   python tools/weight_memory.py --used BLOCK_ID,... --loaded BLOCK_ID,... --date YYYY-MM-DD\n"
+    "#   python .agents/skills/meridian-v4/weight_memory.py --used BLOCK_ID,... --loaded BLOCK_ID,... --date YYYY-MM-DD\n"
     "#\n"
 )
 with path.open("w", encoding="utf-8") as f:
     f.write(header)
     yaml.dump(data, f, default_flow_style=False, allow_unicode=True, sort_keys=False)
 ```
+
+---
+
+## Upgrade Log — Migration Notes by Version
+
+> **Purpose:** When upgrading an existing Meridian installation to a newer version,
+> the agent reads this section and applies every entry whose version is newer than the
+> installed version (`meta.meridian_version` in `weights.default.yaml`). Entries are
+> append-only — never edit or delete a past entry.
+>
+> **Format:** Each entry lists the installed version being upgraded FROM, and the
+> concrete file changes required. The agent applies them in order, top to bottom.
+
+---
+
+### v4.5 — Session-Init Restructure (2026-05-24)
+
+Applies to any v4.5 installation created before 2026-05-24. No version bump — this is
+a behavioral correction within v4.5.
+
+**Change:** `SESSION_INIT.md` is now the single source of truth for bootstrap procedure.
+The agent-native auto-load file (e.g. `copilot-instructions.md`) becomes a thin pointer
+only. All checklist steps move into `SESSION_INIT.md`, structured like `SESSION_END.md`.
+
+**1. Rebuild the SESSION_INIT.md bootstrap section**
+
+Replace whatever flat checklist or procedure section exists in `agent_docs/SESSION_INIT.md`
+with a hard checklist using this structure (mirrors `SESSION_END.md` format):
+
+```markdown
+# Session-Start Checklist
+
+> **Run this checklist at the start of every session before providing a briefing or
+> accepting a task.**
+> Steps must be completed in order. Do not skip or reorder.
+
+---
+
+## 1. Read Current State
+[instructions + `[ ] Current State block read`]
+
+## 2. Load L1 Context
+[regenerate-if-missing command + read instruction + `[ ] L1_CONTEXT.md read in full`]
+
+## 3. Read Most Recent PROMPT_LOG Session
+[grep command + `[ ] Most recent PROMPT_LOG session read`]
+
+## 4. Confirm Branch
+[git branch command + `[ ] Branch identified — branch rules applied`]
+
+## 5. Verify Merge Driver
+[git config command + missing-driver recovery instructions + `[ ] Merge driver active`]
+
+## 6. Reset Context Swap
+[printf/Set-Content command + do-not-delete warning + `[ ] context_swap.json reset`]
+
+## 7. Output Confirmation and Open PROMPT_LOG Entry
+[mandatory output line + git config user.name + PROMPT_LOG append template + briefing
+instructions]
+
+---
+
+## Edge Cases (first-time setup only)
+[weights.yaml missing → --seed; L1_CONTEXT.md missing → --generate-l1]
+```
+
+**2. Replace the bootstrap section in the auto-load file**
+
+In your agent-native auto-load file (e.g. `.github/copilot-instructions.md`,
+`CLAUDE.md`, `.cursor/rules/*.mdc`), replace the entire bootstrap checklist with:
+
+```markdown
+## At the Start of Every New Conversation
+
+Read `agent_docs/SESSION_INIT.md` in full and run the Session-Start Checklist defined
+there. That checklist is the single source of truth for bootstrap — do not use a
+checklist defined in this file.
+```
+
+Retain any agent-specific or project-specific content that follows (branch rules,
+always-on standards, skill routing). Do not duplicate any checklist steps.
+
+**3. Verify**
+
+Open a new agent session and confirm the agent outputs the bootstrap confirmation line:
+```
+Bootstrap complete — SESSION_INIT ✓ | L1 ✓ | PROMPT_LOG ✓ | branch: <name> | merge driver ✓
+```
+before providing a briefing.
+
+---
+
+### v4.4 → v4.5
+
+**Check your installed version:** `grep meridian_version agent_docs/weights.default.yaml`
+
+**1. Move skills directory**
+
+Skills moved from `.github/skills/` to `.agents/skills/` (Open Agent Skills standard).
+
+```
+git mv .github/skills .agents/skills
+```
+
+Then update any references in your auto-load instructions file (e.g. `copilot-instructions.md`,
+`AGENTS.md`) that contain `.github/skills/` → `.agents/skills/`.
+
+**2. Move `weight_memory.py` into the skill directory**
+
+```
+git mv tools/weight_memory.py .agents/skills/meridian-v4/weight_memory.py
+```
+
+Update `REPO_ROOT` inside the script (see File Location section in Appendix C).
+
+**3. Replace fixed-depth `REPO_ROOT` with sentinel-walk**
+
+In `weight_memory.py`, replace the `REPO_ROOT = Path(__file__).parent.parent` line with
+the `_find_repo_root()` function documented in Appendix C → File Location. Also update
+`skills_dir` inside the integrity check from `.github/skills` to `.agents/skills`.
+
+**4. Update `weights.default.yaml` version**
+
+Set `meta.meridian_version: "v4.5"` in `agent_docs/weights.default.yaml`.
+
+**5. Switch PROMPT_LOG to append-only**
+
+If your `PROMPT_LOG.md` was prepend-only (newest session at top), reorder it so the
+oldest session is at the top and new sessions are appended at the bottom. Add a divider
+comment at the transition point. Update your auto-load instructions to read with:
+```
+grep -n "^## Session:" agent_docs/PROMPT_LOG.md | tail -1
+```
+then read from that line to end of file.
+
+**6. Add session owner to PROMPT_LOG headers**
+
+Change session header format from `## Session: YYYY-MM-DD` to:
+```
+## Session: YYYY-MM-DD HH:MM PDT — <git config user.name>
+```
+
+**7. Fix `.gitattributes` paths**
+
+If your `.gitattributes` merge driver entries reference `docs/SESSION_INIT.md`,
+`docs/PROMPT_LOG.md`, or `docs/MEMORY.md`, update them to `agent_docs/` prefix.
+
+**8. Update test fixtures**
+
+In `test_weight_memory.py`, change skill fixture path from
+`tmp_path / ".github" / "skills" / skill_name / "SKILL.md"` →
+`tmp_path / ".agents" / "skills" / skill_name / "SKILL.md"`.
+
+**9. Verify**
+
+```
+.venv/bin/python .agents/skills/meridian-v4/weight_memory.py --dry-run --used "" --loaded ""
+```
+
+Output should show `Integrity: OK` with no missing skill file warnings.
+
+---
+
+### v4.3 → v4.4
+
+**Check your installed version:** `grep meridian_version agent_docs/weights.default.yaml`
+
+**1. Update `weights.default.yaml` version**
+
+Set `meta.meridian_version: "v4.4"`.
+
+**2. Add index-driven conflict detection to skill-manager**
+
+In `.agents/skills/meridian-skill-manager/SKILL.md`, add Step 1a (index-driven scope)
+before the existing free-form grep scan. The audit checklist should now have two sub-steps:
+1a (MEMORY_INDEX domain/skill lookup) and 1b (free-form scan for L1 blocks only).
+
+**3. Add BAD/GOOD anchors to skill creation workflow**
+
+In `.agents/skills/meridian-skill-manager/SKILL.md`, Step 2 of the creation workflow
+should explicitly show a BAD example (missing audit) and a GOOD example (audit performed
+before writing). See Appendix B in this file for the full template.
+
+**4. L1_CONTEXT.md version header**
+
+The L1 header now reads `meridian_version` from `weights.default.yaml` at generation
+time rather than hardcoding it. No file change required — regenerate L1 by running
+`weight_memory.py --generate-l1` after updating `weights.default.yaml`.

@@ -1,6 +1,6 @@
 # Meridian — Agent Context and Memory System
 
-**Version:** 4.4  
+**Version:** 4.5  
 **Publisher:** TableStakes LLC  
 **License:** Apache 2.0
 
@@ -102,6 +102,7 @@ There is no required minimum. All parts of Meridian work on their own.
 |---|---|
 | 4.3 | Initial public release. Bootstrap, seed history, weight system, skill routing, session lifecycle. |
 | 4.4 | Index-driven conflict detection for skill authoring. BAD/GOOD negative anchor rule for skills. |
+| 4.5 | Hard checklist format for SESSION_INIT.md. Thin pointer pattern for agent auto-load file. `weight_memory.py` moved into the memory skill. `meta.meridian_version` in `weights.default.yaml` (L1 header auto-populated). Agent-agnostic skills path (`.agents/skills/`). |
 
 ---
 
