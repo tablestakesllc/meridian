@@ -1,7 +1,7 @@
-# Meridian Agent Context and Memory System — Bootstrap Prompt (v4.5)
+# Meridian Agent Context and Memory System — Bootstrap Prompt (v4.6)
 
 > **How to use this file:**
-> Give this document to a fresh agent on any new repository to set up Meridian v4.5
+> Give this document to a fresh agent on any new repository to set up Meridian v4.6
 > from scratch. The agent should follow the steps in order. No prior Meridian knowledge
 > is required. All schemas and templates are included inline.
 
@@ -9,7 +9,7 @@
 
 ## What You Are Setting Up
 
-You are setting up the **Meridian Agent Context and Memory System (v4.5)** in this
+You are setting up the **Meridian Agent Context and Memory System (v4.6)** in this
 repository. Meridian is a file-native knowledge grounding system for AI coding agents.
 It has no server, no vector database, and no external API dependencies. Everything lives
 in the repository.
@@ -194,17 +194,10 @@ End the checklist with an **Edge Cases** section for first-time setup (missing
 
 This file is the session close checklist. It must instruct the agent to:
 
-1. Update `agent_docs/SESSION_INIT.md` Current State block
-2. Update project development log (DEVELOPMENT.md or equivalent)
-3. Update `agent_docs/PROMPT_LOG.md` with all prompts from the session
-4. Run the weight update script:
-   ```bash
-   python .agents/skills/meridian-v4/weight_memory.py \
-       --used   "<comma-separated block IDs actively used>" \
-       --loaded "<comma-separated block IDs loaded this session>" \
-       --date   "YYYY-MM-DD"
-   ```
-5. Write `.agent/context_swap.json`:
+1. Write `.agent/context_swap.json` as a **session snapshot** — before touching any
+   docs. This is the agent's save point; if context is compressed mid-session-end, the
+   agent recovers state by reading this file. After writing, read it back in full and
+   use it as the authoritative reference for all remaining steps:
    ```json
    {
      "session": "YYYY-MM-DDTHH:MM:SSZ",
@@ -213,8 +206,19 @@ This file is the session close checklist. It must instruct the agent to:
      "blocks_loaded": ["<id>", "..."],
      "blocks_used": ["<id>", "..."],
      "new_candidates": [],
-     "decisions": ["<key decision or gotcha from this session>"]
+     "decisions": ["<key decision or gotcha from this session>"],
+     "issues_created": []
    }
+   ```
+2. Update `agent_docs/SESSION_INIT.md` Current State block
+3. Update project development log (DEVELOPMENT.md or equivalent)
+4. Update `agent_docs/PROMPT_LOG.md` with all prompts from the session
+5. Run the weight update script:
+   ```bash
+   python .agents/skills/meridian-v4/weight_memory.py \
+       --used   "<comma-separated block IDs actively used>" \
+       --loaded "<comma-separated block IDs loaded this session>" \
+       --date   "YYYY-MM-DD"
    ```
 6. Stage all changes and push in one commit:
    ```bash
@@ -271,13 +275,13 @@ Running log of user prompts per session. Append-only — new sessions are added 
 
 ## Session: <YYYY-MM-DD HH:MM PDT> — <git config user.name>
 ### Context at Session Start
-Meridian v4.5 initial setup.
+Meridian v4.6 initial setup.
 
 ### Prompts
 
 | Time (PDT) | Prompt | Commit |
 |---|---|---|
-| <YYYY-MM-DD HH:MM PDT> | Initial Meridian v4.5 setup | — |
+| <YYYY-MM-DD HH:MM PDT> | Initial Meridian v4.6 setup | — |
 ```
 
 ---
@@ -314,6 +318,45 @@ You may add agent-specific or project-specific content after the bootstrap point
 any step from the `SESSION_INIT.md` checklist here. Duplication creates two competing
 checklists that agents will conflate.
 
+### Pre-Approved Commands
+
+Many agents support declaring commands that can be run without prompting the user for
+confirmation. Pre-approving Meridian's read-only and idempotent commands eliminates
+unnecessary approval prompts during session-start and session-end.
+
+| Agent | Configuration location |
+|---|---|
+| GitHub Copilot (VS Code) | `github.copilot.chat.agent.autoApproveTerminalCommands` in `.vscode/settings.json` |
+| Cursor | Allowed tools list in agent config |
+| Claude Code | `allowed_tools` in `CLAUDE.md` or settings |
+
+Suggested baseline for any Meridian installation (adapt paths to your skill directory):
+
+```json
+// .vscode/settings.json
+{
+  "github.copilot.chat.agent.autoApproveTerminalCommands": [
+    "python .agents/skills/meridian-v4/weight_memory.py --help",
+    "python .agents/skills/meridian-v4/weight_memory.py --check-defaults",
+    "python .agents/skills/meridian-v4/weight_memory.py --generate-l1",
+    "python .agents/skills/meridian-v4/weight_memory.py --dry-run *",
+    "git status",
+    "git log *",
+    "git branch *",
+    "git diff *",
+    "git config *"
+  ]
+}
+```
+
+> **After completing this step, prompt your user:**
+> "I’ve created the auto-load file with the bootstrap pointer. Meridian recommends
+> pre-approving its read-only commands so session-start and session-end can run without
+> stopping for confirmation. The suggested list includes `git status/log/diff/branch`,
+> `git config`, and `weight_memory.py --generate-l1`, `--check-defaults`, and
+> `--dry-run`. Would you like to add, remove, or adjust anything before I configure
+> auto-approval for your agent?"
+
 ---
 
 ## Step 9: Seed and Generate L1
@@ -349,6 +392,12 @@ Output should report zero new blocks. If any are listed, run `--seed` again.
 
 The system is now operational. Begin adding memory blocks as you work — each session's
 `--used` and `--loaded` flags will grow the weights organically from actual use.
+
+**Run the shake-down** to verify the full installation before your first real session:
+
+> Open `agent_docs/MERIDIAN_SHAKEDOWN.md` and paste it into a new agent conversation.
+> The agent works through 9 verification phases and produces a PASS/FAIL findings report.
+> Fix any FAILs before proceeding.
 
 ---
 
@@ -402,13 +451,13 @@ Register both in your agent’s auto-load instructions file under the skill disp
 ```yaml
 ---
 name: meridian-v4
-description: 'Meridian v4.5 memory system operations: adding blocks, weight_memory.py session-end run, L1 promotion/demotion, per-developer weights.yaml, weights.default.yaml, L1_CONTEXT.md generation, context_swap.json, MEMORY_INDEX.yaml block registration, deciding where new knowledge goes. Use when: adding new block, running weight update, block tier change, context_swap, MEMORY_INDEX edit, knowledge triage, first-boot seed, check-defaults, migrate.'
+description: 'Meridian v4.6 memory system operations: adding blocks, weight_memory.py session-end run, L1 promotion/demotion, per-developer weights.yaml, weights.default.yaml, L1_CONTEXT.md generation, context_swap.json, MEMORY_INDEX.yaml block registration, deciding where new knowledge goes. Use when: adding new block, running weight update, block tier change, context_swap, MEMORY_INDEX edit, knowledge triage, first-boot seed, check-defaults, migrate.'
 ---
 ```
 
-# Meridian v4.5 Memory System — Operations Reference
+# Meridian v4.6 Memory System — Operations Reference
 
-This skill covers **operating** the v4.5 memory system. For system design rationale, see
+This skill covers **operating** the v4.6 memory system. For system design rationale, see
 the Always-On Standards section of your agent’s auto-load instructions file.
 
 ---
@@ -960,7 +1009,7 @@ After implementing, keep this file in sync with any script changes.
 
 ### Purpose
 
-Session-end weight update script for the Meridian v4.5 agent context and memory system.
+Session-end weight update script for the Meridian v4.6 agent context and memory system.
 Updates block weights in `agent_docs/MEMORY_INDEX.yaml` based on session usage, applies
 decay to unloaded blocks, reclassifies tiers, and runs integrity and health checks.
 
@@ -1205,7 +1254,7 @@ Write the comment header first, then `yaml.dump`:
 
 ```python
 header = (
-    "# Meridian Agent Memory Index — v4.5\n"
+    "# Meridian Agent Memory Index — v4.6\n"
     "#\n"
     "# Single source of truth for all memory blocks: weights, tiers, and dependencies.\n"
     "# Do NOT edit manually during a session — updated by the agent at session-end.\n"
@@ -1230,6 +1279,157 @@ with path.open("w", encoding="utf-8") as f:
 >
 > **Format:** Each entry lists the installed version being upgraded FROM, and the
 > concrete file changes required. The agent applies them in order, top to bottom.
+
+---
+
+### v4.5 → v4.6
+
+**Check your installed version:** `grep meridian_version agent_docs/weights.default.yaml`
+
+**1. Replace `weight_memory.py`**
+
+Replace `.agents/skills/meridian-v4/weight_memory.py` with the v4.6 version. The script
+adds four new CLI flags plus two new behaviors. No existing flags or behaviours removed.
+
+New flags:
+
+- `--calibrate` — Calibrates the L1/archive weight thresholds from git commit frequency
+  history. Writes updated `thresholds.l1` and `thresholds.archive` to `.agent/weights.yaml`.
+  Use `--calibrate --dry-run` to preview before applying. Run once per developer.
+
+- `--export-defaults` — **Read-only.** Compares `.agent/weights.yaml` against
+  `weights.default.yaml` and prints two tables: (1) PROMOTE CANDIDATES — blocks whose
+  local weight has drifted >= `export_promote_threshold` (default 1.5) above seed;
+  (2) SEED TOO HIGH — blocks whose local weight is <= `export_demote_threshold` (default
+  3.0) below seed. Output is a human-readable recommendation table; the maintainer edits
+  `weights.default.yaml` manually. Nothing is written.
+
+- `--maintenance-reset` — Resets `sessions_since_maintenance` to 0 and clears any
+  `maintenance_deferred` flag in `.agent/weights.yaml`. Run after completing a memory
+  health review to stop the maintenance prompt from firing.
+
+- `--maintenance-defer VALUE` — Defers the maintenance prompt. VALUE is one of:
+  `'next-start'` or `'next-end'` (one-time suppression: the maintenance notice is
+  skipped for the next `--used/--loaded` run, then the flag is auto-cleared — both
+  values have identical runtime behavior); or an integer N (sets the counter to
+  `maintenance_interval - N` so the prompt fires again in N sessions).
+
+**Maintenance scheduling:** `sessions_since_maintenance` is incremented on every
+non-dry-run `--used/--loaded` call (dry-run does not write weights, so the counter
+is not persisted). The maintenance prompt fires when the counter reaches
+`maintenance_interval` (default: **30 sessions**, configurable via
+`meta.maintenance_interval` in `weights.default.yaml`). The `maintenance_deferred`
+flag is checked inside `cmd_update` itself — no SESSION_INIT or SESSION_END
+checklist changes are required.
+
+New behaviors:
+
+- **File-glob auto-dispatch:** blocks with `files:` globs in `MEMORY_INDEX.yaml` whose
+  patterns match files returned by `git diff --name-only @{u}..HEAD` (committed work since
+  the upstream) are auto-added to `--loaded` before weight updates. Falls back to
+  `git diff --name-only HEAD` (uncommitted changes) when no upstream is configured.
+- **Dry-run L1 preview:** `--dry-run` shows L1 candidates sorted by weight descending.
+
+**2. Update `weights.default.yaml` version**
+
+Set `meta.meridian_version: "v4.6"` in `agent_docs/weights.default.yaml`.
+
+**3. Remove hardcoded File → Skill routing tables (if any)**
+
+`generate_l1_context()` now auto-generates a `## File → Skill Routing Table` section at
+the bottom of `agent_docs/L1_CONTEXT.md` derived from the `files:` globs in
+`MEMORY_INDEX.yaml`. If you have a hardcoded routing table in `agent_docs/MEMORY.md` or
+your agent auto-load file, replace it with a single pointer paragraph:
+
+> "Check the auto-generated routing table at the bottom of `agent_docs/L1_CONTEXT.md`."
+
+The table is regenerated at every session-end weight update — it is always current.
+
+**4. One-time: set up the YAML union merge driver**
+
+v4.6 automates this during `--seed` for new installs. For upgrades (where
+`.agent/weights.yaml` already exists), apply the three steps manually:
+
+**4a.** Create `.gitconfig` at the repo root (skip if it already exists):
+
+```
+[merge "union"]
+	name = union merge driver
+	driver = git merge-file --union %O %A %B
+```
+
+**4b.** Create `.gitattributes` at the repo root (skip if it already exists):
+
+```
+# Meridian memory files — use union merge driver to prevent conflicts
+.agent/**/*.yaml      merge=union
+.agents/**/*.yaml     merge=union
+agent_docs/**/*.yaml  merge=union
+```
+
+**4c.** Register the driver locally:
+
+```bash
+git config --local include.path ../.gitconfig
+```
+
+Verify:
+
+```bash
+git config --local include.path    # expected: ../.gitconfig
+```
+
+**5. Optional: run `--calibrate`**
+
+Calibrates the L1/archive weight thresholds based on your project's git commit frequency.
+Run once per developer to seed thresholds appropriate for the repository's pace:
+
+```bash
+python .agents/skills/meridian-v4/weight_memory.py --calibrate --dry-run  # preview first
+python .agents/skills/meridian-v4/weight_memory.py --calibrate             # then apply
+```
+
+**5a. Patch: `--dry-run` crash on blocks with `skill: null`**
+
+If you run `--dry-run` and see:
+
+```
+TypeError: unsupported format string passed to NoneType.__format__
+```
+
+this means a block in your `MEMORY_INDEX.yaml` has `skill: null` (or omits the `skill:`
+key). The v4.6 dry-run L1 preview passes the raw value to a `{skill:25s}` format spec,
+which crashes on `None`.
+
+**Fix:** In `weight_memory.py`, find `_preview_l1_blocks()` and change:
+
+```python
+# Before (crashes when skill is None)
+skill = meta.get("skill", "?")
+```
+```python
+# After (safe — treats None and missing as "?")
+skill = meta.get("skill") or "?"
+```
+
+This was patched in the canonical `weight_memory.py` in the same commit that introduced
+this upgrade log. If you copied the script before the patch, apply the one-liner above.
+
+**6. Update `REBUILD_SPEC.md`**
+
+Append the four new flags and two new behaviors from step 1 above to
+`.agents/skills/meridian-v4/REBUILD_SPEC.md` — the CLI Interface section and any
+relevant logic sections. The spec must stay in sync with the script so a future
+reconstruction is accurate.
+
+**7. Verify**
+
+```bash
+python .agents/skills/meridian-v4/weight_memory.py --generate-l1
+```
+
+`agent_docs/L1_CONTEXT.md` should now contain a `## File → Skill Routing Table` section
+derived from your `MEMORY_INDEX.yaml` `files:` globs.
 
 ---
 

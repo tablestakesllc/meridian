@@ -214,9 +214,9 @@ Add each block as a numbered section. Use the annotation format:
 ### Run the seed and generate L1
 
 ```bash
-python tools/weight_memory.py --seed
-python tools/weight_memory.py --generate-l1
-python tools/weight_memory.py --check-defaults
+python .agents/skills/meridian-v4/weight_memory.py --seed
+python .agents/skills/meridian-v4/weight_memory.py --generate-l1
+python .agents/skills/meridian-v4/weight_memory.py --check-defaults
 ```
 
 ---
@@ -226,7 +226,7 @@ python tools/weight_memory.py --check-defaults
 ```bash
 git add agent_docs/MEMORY_INDEX.yaml agent_docs/MEMORY.md \
   agent_docs/weights.default.yaml agent_docs/SESSION_INIT.md \
-  tools/weight_memory.py
+  .agents/skills/meridian-v4/weight_memory.py
 git commit -m "feat(meridian): initial memory seed from git history analysis"
 ```
 
