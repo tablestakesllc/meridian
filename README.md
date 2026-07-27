@@ -1,6 +1,6 @@
 # Meridian — Agent Context and Memory System
 
-**Version:** 4.6  
+**Version:** 4.7  
 **Publisher:** TableStakes LLC  
 **License:** Apache 2.0
 
@@ -55,7 +55,7 @@ loading everything at once.
 
 - `BOOTSTRAP.md`: A step-by-step setup guide prompt for any new repository. Give it to a fresh
   agent and follow along. No prior Meridian knowledge required.
-- `SHAKEDOWN.md`: A 9-phase post-deployment verification prompt. Run it once after setup and after
+- `SHAKEDOWN.md`: A 10-phase post-deployment verification prompt. Run it once after setup and after
   any major version upgrade to confirm the full installation is functioning correctly.
 - `SEED_HISTORY.md`: A structured prompt that analyzes a repository's git history to
   generate an initial set of memory blocks. Run it once on a new codebase to give
@@ -106,6 +106,7 @@ There is no required minimum. All parts of Meridian work on their own.
 | 4.4 | Index-driven conflict detection for skill authoring. BAD/GOOD negative anchor rule for skills. |
 | 4.5 | Hard checklist format for SESSION_INIT.md. Thin pointer pattern for agent auto-load file. `weight_memory.py` moved into the memory skill. `meta.meridian_version` in `weights.default.yaml` (L1 header auto-populated). Agent-agnostic skills path (`.agents/skills/`). |
 | 4.6 | Maintenance counter with `--maintenance-reset` / `--maintenance-defer`. File-glob auto-dispatch (`@{u}..HEAD`). `--check-defaults` threshold diff. Dry-run L1 preview. Depends enforcement. `--export-defaults` and `--calibrate`. Auto-generated File→Skill routing table in `L1_CONTEXT.md`. Merge driver bootstrap in `--seed`. `SHAKEDOWN.md` post-deployment verification prompt. Pre-approved commands section in `BOOTSTRAP.md`. |
+| 4.7 | Compaction recovery skill (`meridian-compaction`). `context_swap.json` format spec and lifecycle extracted from `meridian-v4` into a dedicated skill with a single owner. SESSION_INIT step 2 now loads the compaction skill at bootstrap so the checkpoint format is known before the first task. SESSION_END step 0b references the skill protocol instead of an inline JSON template. Appendix D added to `BOOTSTRAP.md` (compaction skill template). Phase 10 (compaction recovery read-check) added to `SHAKEDOWN.md`. `weight_memory.py` save-behavior spec updated to use `_meridian_version()` dynamically. |
 
 ---
 
