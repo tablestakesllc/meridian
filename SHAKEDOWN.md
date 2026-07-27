@@ -1,4 +1,4 @@
-# Meridian — Post-Deployment Shake-Down Prompt (v4.6)
+# Meridian — Post-Deployment Shake-Down Prompt (v4.7)
 
 > **How to use:** Paste this file into a new agent conversation on a repository where
 > Meridian has just been installed (MERIDIAN_BOOTSTRAP.md steps 1–11 complete) or
@@ -14,7 +14,7 @@
 
 ## Your Task
 
-You are performing a systematic shake-down of the Meridian v4.6 installation in this
+You are performing a systematic shake-down of the Meridian v4.7 installation in this
 repository. Work through each phase in order. For each numbered check, output one of:
 
 - `PASS` — check succeeded, no issues
@@ -37,6 +37,7 @@ Verify the following paths exist. For each, report PASS or FAIL.
 6. `agent_docs/SESSION_END.md` — session-end checklist
 7. `agent_docs/PROMPT_LOG.md` — session history log
 8. `agent_docs/MEMORY.md` — raw knowledge wiki
+9. `.agents/skills/meridian-compaction/SKILL.md` — compaction recovery skill (v4.7)
 
 Gitignored files (`.agent/weights.yaml`, `agent_docs/L1_CONTEXT.md`) may be absent on a
 fresh clone — that is expected. Note them as `SKIP (generate with --seed / --generate-l1)`.
@@ -134,16 +135,19 @@ If any of these fail, the merge driver is not set up. Apply the three steps manu
 
 ---
 
-## Phase 7 — SESSION_INIT Bootstrap Confirmation Line
+## Phase 7 — SESSION_INIT Bootstrap Checklist
 
 1. Read `agent_docs/SESSION_INIT.md`
 2. Confirm it contains all of the following checklist items:
    - A step to load `agent_docs/L1_CONTEXT.md`
+   - A step to load skill: meridian-compaction (v4.7 requirement — must appear in step 2)
    - A step to read the most recent PROMPT_LOG session
    - A step to confirm the active branch
    - A step to verify the merge driver
    - A step to reset `context_swap.json` (`printf '{}' > .agent/context_swap.json`)
+   - A step that references meridian-compaction as the format owner for context_swap.json
    - A required agent output line: `Bootstrap complete — SESSION_INIT ✓ | L1 ✓ | ...`
+   - Confirmation line does NOT include COMPACTION (line is unchanged from v4.6)
 
 3. For each item above, report PASS or FAIL with the specific line reference.
 
@@ -154,6 +158,7 @@ If any of these fail, the merge driver is not set up. Apply the three steps manu
 1. Read `agent_docs/SESSION_END.md`
 2. Confirm it includes (in any order):
    - A step to write `context_swap.json` snapshot **before** doc updates
+   - context_swap.json write step references meridian-compaction skill (not inline JSON template)
    - A step to update SESSION_INIT.md Current State block
    - A step to update the dev log (DEVELOPMENT.md or equivalent)
    - A step to update PROMPT_LOG.md
@@ -163,17 +168,24 @@ If any of these fail, the merge driver is not set up. Apply the three steps manu
 3. Confirm context_swap.json write appears as the **first** substantive step
    (before SESSION_INIT update). Report PASS or FAIL.
 
+4. Open SESSION_END.md step 0b. Confirm it does NOT contain an inline JSON
+   template. The meridian-compaction skill is the authority; inline template would
+   be a duplicate source of truth. Report PASS or FAIL.
+
 ---
 
 ## Phase 9 — Minimal Session-End Simulation
 
 Simulate a session-end cycle with dummy data (no real git push).
 
-1. Write a test context_swap:
+1. Write a test context_swap using the v4.7 format (includes task field):
    ```bash
-   printf '{"session":"2025-01-01T00:00:00Z","branch":"test","head":"abc123","blocks_loaded":[],"blocks_used":[],"decisions":["shakedown test"]}' > .agent/context_swap.json
+   printf '{"session":"2025-01-01T00:00:00Z","branch":"test","head":"abc123","blocks_loaded":[],"blocks_used":[],"decisions":["shakedown test"],"task":"shakedown simulation"}' > .agent/context_swap.json
    ```
-2. Confirm the file was written: `cat .agent/context_swap.json`
+2. Confirm the file was written and contains the task field:
+   ```bash
+   cat .agent/context_swap.json | grep -q '"task"' && echo "task field present" || echo "FAIL: task field missing"
+   ```
 3. Run a dry-run weight update:
    ```bash
    python .agents/skills/meridian-v4/weight_memory.py \
@@ -186,12 +198,34 @@ Report PASS for each step if no errors occur.
 
 ---
 
+## Phase 10 — Compaction Recovery Read-Check
+
+Verify the context_swap.json read path exists and is functional.
+
+1. Write a realistic compaction checkpoint (simulates mid-session state):
+   ```bash
+   printf '{"session":"2025-07-01T12:00:00Z","branch":"feature/test-compaction","head":"abc123def456","blocks_loaded":["agent-operating-prefs"],"blocks_used":["agent-operating-prefs"],"decisions":["adopted BAD/GOOD anchor format"],"issues_created":[],"task":"Implement compaction recovery protocol"}' > .agent/context_swap.json
+   ```
+2. Read .agent/context_swap.json. Confirm all fields are present: branch, head,
+   blocks_loaded, blocks_used, decisions, issues_created, task.
+3. Simulate the rehydration protocol from meridian-compaction SKILL.md:
+   - Read SESSION_INIT.md Current State block only (not full file)
+   - Read L1_CONTEXT.md in full (confirm routing table present)
+   - Read .agent/context_swap.json (already in context from step 2)
+   - Record whether you could interpret block IDs against the routing table
+4. Reset context_swap: `printf '{}' > .agent/context_swap.json`
+
+Report PASS if all steps can be executed and the rehydration protocol is
+understandable from the skill file alone.
+
+---
+
 ## Findings Report
 
 After completing all phases, output this block filled in:
 
 ```
-Meridian v4.6 Shake-Down — Findings Report
+Meridian v4.7 Shake-Down — Findings Report
 ===========================================
 Date: <YYYY-MM-DD>
 Repository: <repo name>
@@ -206,6 +240,7 @@ Phase 6 — Merge Driver:               PASS / PARTIAL / FAIL
 Phase 7 — SESSION_INIT Bootstrap:     PASS / PARTIAL / FAIL
 Phase 8 — SESSION_END Structure:      PASS / PARTIAL / FAIL
 Phase 9 — Session-End Simulation:     PASS / PARTIAL / FAIL
+Phase 10 — Compaction Recovery:       PASS / PARTIAL / FAIL
 
 Failures:
 - <Phase N>: <description of failure and resolution if known>

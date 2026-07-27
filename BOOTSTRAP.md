@@ -1,7 +1,7 @@
-# Meridian Agent Context and Memory System — Bootstrap Prompt (v4.6)
+# Meridian Agent Context and Memory System — Bootstrap Prompt (v4.7)
 
 > **How to use this file:**
-> Give this document to a fresh agent on any new repository to set up Meridian v4.6
+> Give this document to a fresh agent on any new repository to set up Meridian v4.7
 > from scratch. The agent should follow the steps in order. No prior Meridian knowledge
 > is required. All schemas and templates are included inline.
 
@@ -9,7 +9,7 @@
 
 ## What You Are Setting Up
 
-You are setting up the **Meridian Agent Context and Memory System (v4.6)** in this
+You are setting up the **Meridian Agent Context and Memory System (v4.7)** in this
 repository. Meridian is a file-native knowledge grounding system for AI coding agents.
 It has no server, no vector database, and no external API dependencies. Everything lives
 in the repository.
@@ -174,7 +174,7 @@ drives sequential step execution; the mandatory output line makes compliance obs
 
 Required checklist steps (in order):
    1. Read the Current State block — `[ ] Current State block read`
-   2. Load L1 Context — regenerate if missing, then read `agent_docs/L1_CONTEXT.md` in full — `[ ] L1_CONTEXT.md read in full`
+   2. Load L1 Context + Compaction Protocol — regenerate if missing, then read `agent_docs/L1_CONTEXT.md` in full, then load skill: ptm-compaction — `[ ] L1_CONTEXT.md read in full`, `[ ] ptm-compaction skill loaded`
    3. Read most recent PROMPT_LOG session — `grep -n "^## Session:" agent_docs/PROMPT_LOG.md | tail -1` — `[ ] PROMPT_LOG session read`
    4. Confirm branch — `git branch --show-current` — `[ ] Branch identified, rules applied`
    5. Verify merge driver — `git config --local include.path` must output `../.gitconfig` — `[ ] Merge driver active`
@@ -422,24 +422,27 @@ L1. Content above the marker is hot-loaded. Content below is available on demand
 
 ## Step 11: Create the Meridian Core Skill Files
 
-Meridian ships with two core skill files that teach the agent how to operate and extend
-the memory system. Create them from the content in Appendix A and B:
+Meridian ships with three core skill files that teach the agent how to operate and extend
+the memory system. Create them from the content in Appendix A, B, and D:
 
 ```bash
 mkdir -p .agents/skills/meridian-v4
 mkdir -p .agents/skills/meridian-skill-manager
+mkdir -p .agents/skills/meridian-compaction
 ```
 
 - Copy **Appendix A** content → `.agents/skills/meridian-v4/SKILL.md`
 - Copy **Appendix B** content → `.agents/skills/meridian-skill-manager/SKILL.md`
 - Copy **Appendix C** content → `.agents/skills/meridian-v4/REBUILD_SPEC.md`
+- Copy **Appendix D** content → `.agents/skills/meridian-compaction/SKILL.md`
 
 Register both in your agent’s auto-load instructions file under the skill dispatch table:
 
 | Condition | What to load |
 |---|---|
-| Adding new block, running weight update, block tier change, context_swap, MEMORY_INDEX edit, knowledge triage, first-boot seed, check-defaults, migrate | Skill: `meridian-v4` |
+| Adding new block, running weight update, block tier change, MEMORY_INDEX edit, knowledge triage, first-boot seed, check-defaults, migrate | Skill: `meridian-v4` |
 | Creating a new skill, updating an existing skill, SESSION_END skill audit, skill trigger keyword audit | Skill: `meridian-skill-manager` |
+| Compaction detected, TASK RESUMPTION, checkpoint, session resume | Skill: `meridian-compaction` |
 
 ---
 
@@ -451,13 +454,13 @@ Register both in your agent’s auto-load instructions file under the skill disp
 ```yaml
 ---
 name: meridian-v4
-description: 'Meridian v4.6 memory system operations: adding blocks, weight_memory.py session-end run, L1 promotion/demotion, per-developer weights.yaml, weights.default.yaml, L1_CONTEXT.md generation, context_swap.json, MEMORY_INDEX.yaml block registration, deciding where new knowledge goes. Use when: adding new block, running weight update, block tier change, context_swap, MEMORY_INDEX edit, knowledge triage, first-boot seed, check-defaults, migrate.'
+description: 'Meridian v4.7 memory system operations: adding blocks, weight_memory.py session-end run, L1 promotion/demotion, per-developer weights.yaml, weights.default.yaml, L1_CONTEXT.md generation, MEMORY_INDEX.yaml block registration, deciding where new knowledge goes. Use when: adding new block, running weight update, block tier change, MEMORY_INDEX edit, knowledge triage, first-boot seed, check-defaults, migrate.'
 ---
 ```
 
-# Meridian v4.6 Memory System — Operations Reference
+# Meridian v4.7 Memory System — Operations Reference
 
-This skill covers **operating** the v4.6 memory system. For system design rationale, see
+This skill covers **operating** the v4.7 memory system. For system design rationale, see
 the Always-On Standards section of your agent’s auto-load instructions file.
 
 ---
@@ -471,7 +474,7 @@ the Always-On Standards section of your agent’s auto-load instructions file.
 | `agent_docs/L1_CONTEXT.md` | Auto-generated L1 content — gitignored, per-developer | No | Regenerated by `weight_memory.py` at session-end |
 | `agent_docs/MEMORY.md` | Raw wiki — every §N section ever recorded; never delete sections | Yes | When recording a new gotcha |
 | `.agent/weights.yaml` | Per-developer live weights — gitignored | No | Updated by `weight_memory.py` |
-| `.agent/context_swap.json` | Ephemeral per-commit state — gitignored | No | Written after each git commit |
+| `.agent/context_swap.json` | Session checkpoint — owned by meridian-compaction | No | Written on commit and pressure |
 | `.agents/skills/meridian-v4/weight_memory.py` | Weight manager script | Yes | Do not edit; run only |
 
 ---
@@ -658,33 +661,13 @@ than just pointing elsewhere.
 
 ---
 
-### context_swap.json — Format and Timing
+### context_swap.json
 
-Write `.agent/context_swap.json` after each git commit. SESSION_INIT wipes it.
+Owned by skill: `meridian-compaction`. See Appendix D for format specification,
+write/read protocol, and timing rules. This skill no longer defines the
+context_swap.json schema or lifecycle.
 
-```json
-{
-  "branch": "<current branch>",
-  "head": "<git rev-parse HEAD>",
-  "session_date": "YYYY-MM-DD",
-  "blocks_loaded": ["block-id-A", "block-id-B"],
-  "blocks_used": ["block-id-A"],
-  "new_candidates": ["block-id that might warrant a new block next session"],
-  "decisions": ["One-line summary of a key decision made this commit"],
-  "issues_created": [
-    {
-      "number": 0,
-      "title": "<issue title>",
-      "identified_during": "<brief description of work context>",
-      "why": "<one sentence: why it was cut as a separate issue>"
-    }
-  ]
-}
-```
-
-**Checkpoint on issue creation:** Whenever a new issue is created mid-session, write an
-immediate checkpoint to `.agent/context_swap.json` — do not wait for the next commit.
-If `issues_created` is empty, omit the field or leave it as `[]`.
+The file map table row below is retained for directory reference only.
 
 ---
 
@@ -1009,9 +992,13 @@ After implementing, keep this file in sync with any script changes.
 
 ### Purpose
 
-Session-end weight update script for the Meridian v4.6 agent context and memory system.
+Session-end weight update script for the Meridian agent context and memory system.
 Updates block weights in `agent_docs/MEMORY_INDEX.yaml` based on session usage, applies
 decay to unloaded blocks, reclassifies tiers, and runs integrity and health checks.
+
+The script version label (used in help text, docstring, and `_weights_header()`) must
+match `meta.meridian_version` in `agent_docs/weights.default.yaml`. Update both together
+whenever the version is bumped.
 
 ---
 
@@ -1253,8 +1240,10 @@ Otherwise: `  Health: N/M blocks (XX%) stale >90d  (warn at 40%)`
 Write the comment header first, then `yaml.dump`:
 
 ```python
+# Read version dynamically so the header stays in sync with weights.default.yaml
+_version = _meridian_version()  # reads meta.meridian_version from weights.default.yaml
 header = (
-    "# Meridian Agent Memory Index — v4.6\n"
+    f"# Meridian Agent Memory Index — {_version}\n"
     "#\n"
     "# Single source of truth for all memory blocks: weights, tiers, and dependencies.\n"
     "# Do NOT edit manually during a session — updated by the agent at session-end.\n"
@@ -1268,6 +1257,131 @@ with path.open("w", encoding="utf-8") as f:
     yaml.dump(data, f, default_flow_style=False, allow_unicode=True, sort_keys=False)
 ```
 
+Note: `_meridian_version()` reads `meta.meridian_version` from `weights.default.yaml`
+at call time. This keeps the header in sync automatically — no hardcoded version string
+in the script itself.
+
+---
+
+## Appendix D: `.agents/skills/meridian-compaction/SKILL.md`
+
+> Copy the following content into `.agents/skills/meridian-compaction/SKILL.md`.
+
+```yaml
+---
+name: meridian-compaction
+description: 'Meridian session compaction checkpoint and recovery protocol. Owns context_swap.json format specification. Always loaded by SESSION_INIT.md. Use when: TASK RESUMPTION detected, conversation compaction, session resume, checkpoint write, continuing interrupted work.'
+---
+
+# Meridian Compaction Recovery
+
+Loaded at bootstrap. Owns the checkpoint and recovery lifecycle for
+context_swap.json. This file is read on compaction recovery and written on
+session-end and context-pressure events.
+
+---
+
+## context_swap.json Format
+
+{
+  "branch": "<current branch>",
+  "head": "<git rev-parse HEAD>",
+  "session_date": "YYYY-MM-DD",
+  "blocks_loaded": ["id1", "id2"],
+  "blocks_used": ["id1"],
+  "decisions": ["one-line key decision"],
+  "issues_created": [
+    {
+      "number": 0,
+      "title": "<title>",
+      "why": "<one-line reason>"
+    }
+  ],
+  "task": "one-line: what was being done"
+}
+
+This file is gitignored. SESSION_INIT step 6 wipes it to {} at full bootstrap.
+SESSION_END step 0b writes a session snapshot before doc updates.
+
+---
+
+## Pre-Compaction Checkpoint (Write)
+
+When context pressure is high (approaching token limit, multiple compactions in
+session, user warns) or on every git commit, extract the following from the
+conversation without re-reading any files:
+
+| Field | How to extract |
+|---|---|
+| branch | Find "On \`name\`" in conversation or run git branch --show-current |
+| head | Find "at \`hash\`" in conversation or run git rev-parse HEAD |
+| blocks_loaded | Scan conversation for --loaded args or SKILL.md file read events |
+| blocks_used | Scan conversation for --used args or block content directly applied |
+| task | The last user prompt before this checkpoint |
+| decisions | Scan for "decision:", "agreed:", "confirmed:", "decided:" |
+| issues | Scan for "#NNN" creation or "gh issue create" commands |
+
+Write to .agent/context_swap.json. Do not read files to populate fields.
+The goal is minimal token extraction from the conversation already in memory.
+Do not validate block IDs against MEMORY_INDEX.yaml at write time.
+
+BAD: Reading MEMORY_INDEX.yaml during checkpoint -- burns tokens on validation
+     that rehydration will repeat; doubles the cost with no gain
+GOOD: Write what the conversation contains; validate on rehydration if needed
+
+---
+
+## Post-Compaction Rehydration (Read)
+
+When "TASK RESUMPTION" appears in the conversation or compaction language is
+detected, run this protocol instead of the full SESSION_INIT checklist:
+
+Step 1 -- Read agent_docs/SESSION_INIT.md Current State block only. Record
+branch, last commit, blockers. Do not read the full file.
+
+Step 2 -- Read agent_docs/L1_CONTEXT.md in full. This recovers operating rules,
+the file-to-skill routing table, and the sub-agent handoff block. Meridian
+scaffolding must load before context_swap.json so block IDs are interpretable.
+
+Step 3 -- Read .agent/context_swap.json. Block IDs now resolve to known skills
+via the routing table from Step 2. Branch sanity-checks against Step 1.
+
+Step 4 -- Run git branch --show-current. Confirm the branch matches what Step 1
+and Step 3 expect.
+
+Step 5 -- Report recovered state to user:
+"Recovered from compaction. Branch: X. Head: Y. Task: Z. Ready."
+
+Do not rerun the full session-start checklist. Do not read PROMPT_LOG.
+Do not re-verify merge driver. Do not wipe context_swap.json.
+
+BAD: Rerunning full SESSION_INIT checklist after compaction -- reads
+     PROMPT_LOG, re-verifies merge driver, and burns tokens on steps
+     already verified earlier in the same session
+GOOD: Recovery protocol above -- 4 targeted reads, no redundant verification
+
+If .agent/context_swap.json reads as {} (empty), fall back to the full
+SESSION_INIT checklist. The compaction signal was a false positive.
+
+---
+
+## Timing Rules
+
+Write context_swap.json:
+- After each git commit
+- After creating a new issue mid-session
+- On detection of context pressure (approaching token limit)
+- Before any conversation compaction is requested
+
+Read context_swap.json:
+- Only during rehydration Step 3 above
+- Never during normal SESSION_INIT bootstrap
+
+Wipe context_swap.json:
+- SESSION_INIT step 6 resets to {} at full bootstrap start
+- Never wipe during recovery
+```
+
 ---
 
 ## Upgrade Log — Migration Notes by Version
@@ -1279,6 +1393,67 @@ with path.open("w", encoding="utf-8") as f:
 >
 > **Format:** Each entry lists the installed version being upgraded FROM, and the
 > concrete file changes required. The agent applies them in order, top to bottom.
+
+---
+
+### v4.6 → v4.7 — Compaction Recovery (2026-07-26)
+
+**Check your installed version:** `grep meridian_version agent_docs/weights.default.yaml`
+
+**Change:** New meridian-compaction skill for session checkpoint and recovery.
+context_swap.json ownership moves from meridian-v4 to meridian-compaction.
+SESSION_INIT step 2 now loads compaction protocol at bootstrap.
+
+**1. Create meridian-compaction skill**
+
+Create `.agents/skills/meridian-compaction/SKILL.md` from Appendix D in this file.
+Register in the auto-load file skill dispatch table:
+| Compaction detected, TASK RESUMPTION, checkpoint, session resume | Skill: meridian-compaction |
+
+**2. Update meridian-v4 skill**
+
+In `.agents/skills/meridian-v4/SKILL.md`:
+- Remove the "context_swap.json — Format and Timing" section
+- Replace with: "context_swap.json — Owned by skill: meridian-compaction. See that skill for format and timing."
+- Update the file map table row: `Session checkpoint — owned by meridian-compaction`
+- Remove "context_swap" from frontmatter description trigger keywords
+
+**3. Update SESSION_INIT.md step 2**
+
+Add meridian-compaction skill load as a sub-step after L1_CONTEXT.md read.
+Add checkboxes:
+  [ ] L1_CONTEXT.md read in full
+  [ ] meridian-compaction skill loaded
+Update step 6 to reference meridian-compaction as format owner.
+Update file map table row for context_swap.json.
+
+**4. Update SESSION_END.md step 0b**
+
+Replace inline JSON template with reference to meridian-compaction protocol.
+Replace checkbox: `[ ] context_swap.json written per meridian-compaction protocol`
+
+**5. Set version**
+
+Set `meta.meridian_version: "v4.7"` in `agent_docs/weights.default.yaml`.
+
+**6. Verify**
+
+Open a new agent session. Confirm the agent loads meridian-compaction during step 2
+and outputs the standard confirmation line (unchanged from v4.6).
+
+**7. Update weight_memory.py version strings (cosmetic)**
+
+`_meridian_version()` reads the version dynamically from `weights.default.yaml`, so the
+L1_CONTEXT.md header is already correct after step 5. However, the script's help text,
+module docstring, and `_weights_header()` may contain hardcoded version strings (e.g.
+`"v4.6"`) that should be updated for consistency. Search the script for any hardcoded
+version strings and update them to match `meta.meridian_version`:
+
+```bash
+grep -n "v4\.[0-9]" .agents/skills/meridian-v4/weight_memory.py
+```
+
+Update any hits that are not inside a comment explaining historical context.
 
 ---
 
