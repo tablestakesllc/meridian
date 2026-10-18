@@ -1,7 +1,7 @@
-# Meridian Agent Context and Memory System — Bootstrap Prompt (v4.7)
+# Meridian Agent Context and Memory System — Bootstrap Prompt (v4.7.1)
 
 > **How to use this file:**
-> Give this document to a fresh agent on any new repository to set up Meridian v4.7
+> Give this document to a fresh agent on any new repository to set up Meridian v4.7.1
 > from scratch. The agent should follow the steps in order. No prior Meridian knowledge
 > is required. All schemas and templates are included inline.
 
@@ -9,7 +9,7 @@
 
 ## What You Are Setting Up
 
-You are setting up the **Meridian Agent Context and Memory System (v4.7)** in this
+You are setting up the **Meridian Agent Context and Memory System (v4.7.1)** in this
 repository. Meridian is a file-native knowledge grounding system for AI coding agents.
 It has no server, no vector database, and no external API dependencies. Everything lives
 in the repository.
@@ -66,6 +66,16 @@ agent_docs/L1_CONTEXT.md
 > **Upgrading from an earlier version?** Skip to the **Upgrade Log** section at the
 > end of this file. Find the entry matching your current version and apply the steps
 > listed there before continuing with setup.
+
+> **Faster path — seed bundle.** Every release from 4.7.1 on attaches
+> `meridian-seed-<version>.tar.gz` and `manifest.json` to its GitHub release. The
+> bundle holds every file from Steps 1–8 and 11, with paths relative to the repository
+> root, `meridian:fill` markers where project details go, and
+> `agent_docs/meridian-manifest.json` listing each file's SHA-256. Extract it into the
+> repository root without overwriting existing files, append `.gitattributes.meridian`
+> to `.gitattributes` and `.gitignore.meridian` to `.gitignore`, replace every
+> `meridian:fill` marker, then continue at Step 9. Latitude users get this flow
+> guided by the Latitude MCP server.
 
 Copy `weight_memory.py` from an existing Meridian installation into
 `.agents/skills/meridian-v4/weight_memory.py`.
@@ -128,6 +138,8 @@ Schema:
 meta:
   schema_version: 1
   description: "Default seed weights for <project name>"
+  meridian_version: "4.7.1"   # three-part; read by weight_memory.py for the L1 header
+  contract_version: 1         # Latitude compatibility; changes only on a breaking file-format change
   thresholds:
     l1: 8.0        # blocks at or above this weight are hot-loaded into L1_CONTEXT.md
     archive: 2.0   # blocks at or below this weight are flagged for review
@@ -185,8 +197,19 @@ Required checklist steps (in order):
 End the checklist with an **Edge Cases** section for first-time setup (missing
 `weights.yaml` or `L1_CONTEXT.md`) so those paths stay out of the normal flow.
 
-**3. File map table** describing each Meridian file and whether it is committed or
-   gitignored.
+**3. File map table** under the exact heading `## File Map`, with the columns
+   `| File | Role | Committed? |`, describing each Meridian file and whether it is
+   committed or gitignored. Latitude parses this heading and table.
+
+Put the Latitude redirect at the head of the checklist, so agents that have the
+Latitude MCP tools call its `bootstrap` tool instead of running the steps by hand:
+
+```markdown
+> **HALT.** Before you advance past this block, check your available MCP tools.
+> If `get_context_for_task` and `load_blocks` are in your tool list, Latitude is
+> running. Stop reading this file and call the `bootstrap` tool now.
+> Continue only when Latitude tools are absent.
+```
 
 ---
 
@@ -220,12 +243,14 @@ This file is the session close checklist. It must instruct the agent to:
        --loaded "<comma-separated block IDs loaded this session>" \
        --date   "YYYY-MM-DD"
    ```
-6. Stage all changes and push in one commit:
+6. Stage the session's changes and commit:
    ```bash
-   git add -A
-   git commit -m "chore(docs): session-end [skip ci]"
-   git push
+   git add <files changed this session>
+   git commit -m "chore(docs): session-end"
    ```
+   Never put `[skip ci]` or a similar skip marker in the message: squash merges copy
+   branch commit messages into the merge commit, so the main branch would skip CI.
+   Push only when the user asks.
 
 ---
 
@@ -246,6 +271,15 @@ Start with a minimal file:
 
 ---
 
+## §0 — Agent Operating Preferences
+
+<!-- block: agent-operating-prefs | domain: operations | mem: §0 -->
+<Always-on rules for this repository: branch model, checks before a push, commit
+conventions, actions the agent must never take.>
+<!-- /block -->
+
+---
+
 ## 1. <First topic>
 
 **Added:** <date>
@@ -255,6 +289,10 @@ Start with a minimal file:
 
 Sections are numbered sequentially. Do not delete sections — mark them deprecated if
 they are no longer relevant.
+
+The operating-rules section must use the heading `## §0` (for example
+`## §0 — Agent Operating Preferences`). Latitude serves §0 as the always-loaded
+directives and recognizes only that form; `## 0. ...` is not found.
 
 ---
 
@@ -1393,6 +1431,51 @@ Wipe context_swap.json:
 >
 > **Format:** Each entry lists the installed version being upgraded FROM, and the
 > concrete file changes required. The agent applies them in order, top to bottom.
+
+---
+
+### v4.7 → v4.7.1 — Seed Bundle and Contract Version (2026-10-17)
+
+**Check your installed version:** `grep meridian_version agent_docs/weights.default.yaml`
+
+**Change:** Structural release. No skill or script behavior changes; the core skills in
+Appendices A–D are unchanged. Releases now use three-part versions, declare the
+Latitude contract version, and ship a seed bundle. Applies to all v4.7 installations.
+
+**1. Set version and contract version**
+
+In `agent_docs/weights.default.yaml`:
+```yaml
+meta:
+  meridian_version: "4.7.1"
+  contract_version: 1
+```
+
+**2. Use the `## §0` heading**
+
+If `agent_docs/MEMORY.md` names its operating-rules section `## 0. ...`, rename the
+heading to `## §0 — <same title>`. Leave the section's content and block annotation as
+they are.
+
+**3. Check SESSION_INIT.md headings**
+
+Confirm `## Current State` and `## File Map` exist with those exact names, and that the
+File Map table has the columns `| File | Role | Committed? |`. Add the Latitude
+redirect block (Step 4) at the head of the checklist if you use Latitude.
+
+**4. Remove skip markers from SESSION_END.md**
+
+If the commit step contains `[skip ci]` or a similar marker, remove it (Step 5).
+
+**5. Verify**
+
+```bash
+python .agents/skills/meridian-v4/weight_memory.py --generate-l1
+head -1 agent_docs/L1_CONTEXT.md
+```
+
+The L1 header shows `(4.7.1)`. Run the shake-down if you use Latitude and confirm its
+bootstrap no longer reports §0 or the File Map as missing.
 
 ---
 

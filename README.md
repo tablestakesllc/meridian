@@ -62,9 +62,12 @@ loading everything at once.
   Meridian a grounded starting point instead of a blank slate.
 - `demo/`: A reproducible test methodology and the prompts used to compare a
   Meridian-equipped agent against a baseline agent on an identical task.
-
-- `CONTRIBUTING.md`: How to contribute, and maintainer setup for the private
-  `agent_docs/` submodule that holds Meridian's own development memory.
+- `templates/`: The seed bundle source. Paths mirror a target repository; core files are
+  used verbatim and the rest carry `meridian:fill` markers for project details.
+- `scripts/build_seed_bundle.py`: Builds the release assets `meridian-seed-<version>.tar.gz`
+  and `manifest.json` from `templates/`.
+- `tests/`: Tests for `weight_memory.py` and the seed bundle.
+- `CONTRIBUTING.md`: How to contribute, the release process, and maintainer setup.
 
 The `weight_memory.py` script is defined in full in Appendix C of `BOOTSTRAP.md`. An
 agent can rebuild it from scratch on any repository using that specification.
@@ -73,7 +76,9 @@ agent can rebuild it from scratch on any repository using that specification.
 
 ## Getting Started
 
-1. Copy `BOOTSTRAP.md` into the prompt of a fresh agent to instance Meridian.
+1. Copy `BOOTSTRAP.md` into the prompt of a fresh agent to instance Meridian. Or, from
+   4.7.1 on, start from the seed bundle attached to the latest GitHub release
+   (`BOOTSTRAP.md` Step 1).
 2. Optionally, copy `SEED_HISTORY.md` into the prompt of the same agent to populate
    your initial memory blocks from git history.
 3. Open a clean agent and run `SESSION_INIT.md` to begin your first session.
@@ -110,6 +115,7 @@ There is no required minimum. All parts of Meridian work on their own.
 | 4.5 | Hard checklist format for SESSION_INIT.md. Thin pointer pattern for agent auto-load file. `weight_memory.py` moved into the memory skill. `meta.meridian_version` in `weights.default.yaml` (L1 header auto-populated). Agent-agnostic skills path (`.agents/skills/`). |
 | 4.6 | Maintenance counter with `--maintenance-reset` / `--maintenance-defer`. File-glob auto-dispatch (`@{u}..HEAD`). `--check-defaults` threshold diff. Dry-run L1 preview. Depends enforcement. `--export-defaults` and `--calibrate`. Auto-generated File→Skill routing table in `L1_CONTEXT.md`. Merge driver bootstrap in `--seed`. `SHAKEDOWN.md` post-deployment verification prompt. Pre-approved commands section in `BOOTSTRAP.md`. |
 | 4.7 | Compaction recovery skill (`meridian-compaction`). `context_swap.json` format spec and lifecycle extracted from `meridian-v4` into a dedicated skill with a single owner. SESSION_INIT step 2 now loads the compaction skill at bootstrap so the checkpoint format is known before the first task. SESSION_END step 0b references the skill protocol instead of an inline JSON template. Appendix D added to `BOOTSTRAP.md` (compaction skill template). Phase 10 (compaction recovery read-check) added to `SHAKEDOWN.md`. `weight_memory.py` save-behavior spec updated to use `_meridian_version()` dynamically. |
+| 4.7.1 | Structural release; no skill or script behavior changes. Seed bundle (`meridian-seed-4.7.1.tar.gz`) and `manifest.json` attached to every release from now on. `meta.contract_version: 1` declares Latitude compatibility. Three-part version tags (`vX.Y.Z`). Generated L1 header names no project. Documented `## §0` and `## File Map` headings. Session-end template no longer uses `[skip ci]`. |
 
 ---
 
