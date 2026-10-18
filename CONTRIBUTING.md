@@ -46,14 +46,15 @@ git config submodule.agent_docs.update rebase
 
 ### 3. Create the local symlinks
 
-`.agents/skills` and `.claude` are not committed. They are gitignored symlinks
-into the submodule, so agents find the maintainers' skills and settings at the
-standard paths:
+`.agents/skills`, `.claude` and `CLAUDE.md` are not committed. They are
+gitignored symlinks into the submodule, so agents find the maintainers' skills,
+settings and bootstrap pointer at the standard paths:
 
 | Path | Points to |
 |---|---|
 | `.agents/skills` | `agent_docs/.agents/skills` |
 | `.claude` | `agent_docs/.claude` (its `skills` link points to `../.agents/skills` inside the submodule) |
+| `CLAUDE.md` | `agent_docs/CLAUDE.md` |
 
 Linux, macOS, WSL:
 
@@ -61,6 +62,7 @@ Linux, macOS, WSL:
 mkdir -p .agents
 ln -s ../agent_docs/.agents/skills .agents/skills
 ln -s agent_docs/.claude .claude
+ln -s agent_docs/CLAUDE.md CLAUDE.md
 ```
 
 Windows (PowerShell, Developer Mode on or an elevated prompt):
@@ -70,12 +72,22 @@ git config --global core.symlinks true   # before cloning, so the submodule's ow
 New-Item -ItemType Directory -Force .agents | Out-Null
 New-Item -ItemType SymbolicLink -Path .agents\skills -Target ..\agent_docs\.agents\skills
 New-Item -ItemType SymbolicLink -Path .claude -Target agent_docs\.claude
+New-Item -ItemType SymbolicLink -Path CLAUDE.md -Target agent_docs\CLAUDE.md
 ```
 
-Check: `ls .agents/skills/` and `ls .claude/skills/` list the same skills.
+Check: `ls .agents/skills/` and `ls .claude/skills/` list the same skills, and
+`head -1 CLAUDE.md` prints the maintainer instructions heading.
 
-The `.gitignore` entries are `.agents` and `.claude` with no trailing slash. A
-trailing slash only matches directories and would not ignore a symlink.
+The `.gitignore` entries are `/.agents`, `/.claude` and `/CLAUDE.md`: anchored
+to the root, with no trailing slash. A trailing slash only matches directories
+and would not ignore a symlink.
+
+### 4. First session
+
+Start an agent session at the repo root. The agent follows
+`agent_docs/SESSION_INIT.md`, which seeds the per-developer weights on first
+run. If the weight script's `--seed` creates `.gitconfig` or `.gitattributes`
+at the repo root, they are ignored here and must not be committed.
 
 ---
 
@@ -110,7 +122,18 @@ Merge drivers are per repository. The submodule carries its own
 
 ---
 
-## Public Repo Changes
+## Public Repo Changes and Releases
 
 Changes to the public files go through a branch and a pull request to `main`.
-Never copy maintainer memory (anything under `agent_docs/`) into public files.
+
+Maintainer memory never enters the public repo or a release. That covers
+everything under `agent_docs/`: memory, skills, session logs, development notes
+and tooling. Concretely:
+
+- Public docs and release templates are written fresh, never copied from `agent_docs/`.
+- Public commit messages, PRs, issues, tags and release notes describe the public
+  change only.
+- Stage named files in the public repo; never `git add -A`.
+- Before every public commit, push, tag or release, maintainers run
+  `agent_docs/tools/release_guard.sh` (and `release_guard.sh <bundle>` for a
+  release bundle). It must print `release_guard: OK`.
