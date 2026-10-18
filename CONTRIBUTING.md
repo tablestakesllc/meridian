@@ -18,10 +18,18 @@ authentication error on `agent_docs/`. The public files are unaffected.
 ### Tests
 
 ```bash
-pip install pyyaml pytest
+pip install -r requirements-dev.txt
 python -m pytest tests/ -q
 python scripts/build_seed_bundle.py --check
 ```
+
+CI runs the same checks on every pull request to `main` and every push to it
+(`.github/workflows/ci.yml`, check name `test`), and checks the PR title and
+description for CI skip markers (`pr-text.yml`, check name `pr-text`). Workflows on
+pull requests from contributors outside the organization wait for a maintainer to
+approve the run. `tests/test_workflows.py` enforces the workflow rules: only
+`pull_request` and `push` triggers, read-only tokens, GitHub-owned actions pinned by
+commit SHA, hosted runners with timeouts, and no PR text interpolated into scripts.
 
 ### Git hooks
 
@@ -67,22 +75,28 @@ Meridian uses SemVer with three-part tags (`vX.Y.Z`) from 4.7.0 on.
    **Breaking**, bump `meta.contract_version` there and `CONTRACT_VERSION` in
    `scripts/build_seed_bundle.py`, and update the contract's compatibility matrix in
    the Latitude repo in the same release. Otherwise leave both unchanged.
-3. Run the tests, then build:
+3. Build locally and check the result:
    ```bash
    python scripts/build_seed_bundle.py
    ```
    This writes `dist/meridian-seed-<version>.tar.gz` and `dist/manifest.json` and prints
    the bundle's SHA-256. The build is reproducible: the same templates give the same bytes.
+   `dist/` is gitignored; bundles are never committed.
 4. Maintainers run the release guard on the tree and the bundle (see below).
-5. Merge the release PR, tag `vX.Y.Z` on `main`, and attach both files to the GitHub
-   release:
+5. Merge the release PR, then tag `main`:
    ```bash
-   gh release create vX.Y.Z dist/meridian-seed-X.Y.Z.tar.gz dist/manifest.json \
-     --title "vX.Y.Z" --notes "<public summary>"
+   git tag vX.Y.Z origin/main && git push origin vX.Y.Z
    ```
-6. Give Latitude the new version and the bundle SHA-256 if it should pin this release.
+   The `release` workflow runs the tests, checks the tag matches
+   `meta.meridian_version`, builds the bundle twice to confirm it is reproducible, and
+   creates a **draft** release with `meridian-seed-X.Y.Z.tar.gz` and `manifest.json`
+   attached. The release notes carry the bundle's SHA-256.
+6. Compare the draft's SHA-256 with your local build from step 3, then publish the draft.
+   Once published, the release is immutable.
+7. Give Latitude the new version and the bundle SHA-256 if it should pin this release.
 
 Every release ships a bundle and manifest. A release without them is incomplete.
+Release assets live on the GitHub release only, not in git and not in GitHub Packages.
 
 ---
 

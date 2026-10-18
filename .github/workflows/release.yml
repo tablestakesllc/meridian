@@ -1,0 +1,67 @@
+# Build the seed bundle from a version tag and attach it to a DRAFT GitHub release.
+# A maintainer reviews the draft and publishes it; with immutable releases on, the
+# published tag and assets cannot change afterwards.
+#
+# Runs only for vX.Y.Z tags pushed to this repository. Tags can only be pushed by
+# users with write access, so forks and outside contributors cannot trigger it.
+name: release
+
+on:
+  push:
+    tags: ["v[0-9]+.[0-9]+.[0-9]+"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    if: github.repository == 'tablestakesllc/meridian'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write   # create the draft release and upload its assets
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: false
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Install test dependencies
+        run: python -m pip install --disable-pip-version-check -r requirements-dev.txt
+      - name: Tests
+        run: python -m pytest tests/ -q
+      - name: Tag matches meridian_version
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          version="$(python -c 'import yaml;print(yaml.safe_load(open("templates/agent_docs/weights.default.yaml"))["meta"]["meridian_version"])')"
+          if [ "$TAG" != "v$version" ]; then
+            echo "::error::Tag $TAG does not match meta.meridian_version $version"
+            exit 1
+          fi
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+      - name: Build bundle (checks run first)
+        run: python scripts/build_seed_bundle.py
+      - name: Reproducible build
+        run: |
+          cp "dist/meridian-seed-$VERSION.tar.gz" /tmp/first.tar.gz
+          python scripts/build_seed_bundle.py > /dev/null
+          cmp /tmp/first.tar.gz "dist/meridian-seed-$VERSION.tar.gz"
+      - name: Create draft release with assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          sha="$(sha256sum "dist/meridian-seed-$VERSION.tar.gz" | cut -d' ' -f1)"
+          printf 'Meridian %s seed bundle.\n\n`meridian-seed-%s.tar.gz` SHA-256: `%s`\n\nSee the versions table in README.md and the Upgrade Log in BOOTSTRAP.md.\n' \
+            "$VERSION" "$VERSION" "$sha" > /tmp/notes.md
+          gh release create "$TAG" \
+            "dist/meridian-seed-$VERSION.tar.gz" dist/manifest.json \
+            --repo "$GITHUB_REPOSITORY" --draft --verify-tag \
+            --title "$TAG" --notes-file /tmp/notes.md

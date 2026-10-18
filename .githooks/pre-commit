@@ -6,7 +6,7 @@ cd "$(git rev-parse --show-toplevel)" || exit 1
 PY="${MERIDIAN_PYTHON:-python3}"
 
 if ! "$PY" -c 'import yaml, pytest' 2>/dev/null; then
-  echo "pre-commit: $PY lacks pyyaml/pytest. Install them (pip install pyyaml pytest) or set MERIDIAN_PYTHON." >&2
+  echo "pre-commit: $PY lacks pyyaml/pytest. Install them (pip install -r requirements-dev.txt) or set MERIDIAN_PYTHON." >&2
   exit 1
 fi
 
