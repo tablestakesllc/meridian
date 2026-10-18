@@ -215,6 +215,10 @@ Merge drivers are per repository. The submodule carries its own
 ## Public Repo Changes and Releases
 
 Changes to the public files go through a branch and a pull request to `main`.
+`main` holds version releases only, and pull requests are **squash merged**: the PR
+title becomes the commit title and the PR description becomes the commit message, so
+write both for the public record. Merge commits and rebase merges are disabled, and the
+branch is deleted after the merge.
 
 Maintainer memory never enters the public repo or a release. That covers
 everything under `agent_docs/`: memory, skills, session logs, development notes
