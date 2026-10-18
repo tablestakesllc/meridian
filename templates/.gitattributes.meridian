@@ -1,0 +1,15 @@
+# Meridian — append to .gitattributes
+# LF line endings keep content hashes identical across platforms.
+agent_docs/**                text eol=lf
+.agents/skills/**            text eol=lf
+.clinerules/latitude.md      text eol=lf
+CLAUDE.md                    text eol=lf
+.agents/skills/**/*.py       text eol=lf
+
+# Union merge keeps both sides of append-only and block-structured memory files.
+agent_docs/PROMPT_LOG.md         merge=union
+agent_docs/MEMORY.md             merge=union
+agent_docs/MEMORY_INDEX.yaml     merge=union
+agent_docs/weights.default.yaml  merge=union
+.agent/**/*.yaml                 merge=union
+.agents/**/*.yaml                merge=union

@@ -1,0 +1,5 @@
+# Meridian — append to .gitignore
+# Per-developer state: live weights and the session checkpoint
+.agent/
+# Generated hot-load context, rebuilt by weight_memory.py
+agent_docs/L1_CONTEXT.md

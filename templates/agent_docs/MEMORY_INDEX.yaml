@@ -1,0 +1,44 @@
+# Meridian Memory Index — v4.1
+#
+# Shared block structure: IDs, tags, deps, summaries, status.
+# Weights are per-developer in .agent/weights.yaml (gitignored).
+# Do NOT add weight/tier/last_used to this file.
+#
+# APPLY WEIGHT UPDATES:
+#   python .agents/skills/meridian-v4/weight_memory.py --used BLOCK_ID,... --loaded BLOCK_ID,... --date YYYY-MM-DD
+#
+meta:
+  format_version: 4.1
+  # meridian:fill id="index-description"
+  # Replace the value below with a one-line description naming this project.
+  # /meridian:fill
+  description: "Meridian block index"
+blocks:
+- id: agent-operating-prefs
+  mem: §0
+  domain: operations
+  skill: null
+  depends: []
+  tags:
+  - operating-rules
+  - session-bootstrap
+  - git-push
+  summary: Agent operating rules for this repository; always loaded
+  files: []
+  status: active
+- id: meridian-memory-files
+  mem: §1
+  domain: operations
+  skill: meridian-v4
+  depends: []
+  tags:
+  - MEMORY_INDEX
+  - weights
+  - block-annotation
+  summary: Load meridian-v4 before editing the index, weights or MEMORY.md; new blocks need
+    index entry, seed and annotation
+  files:
+  - agent_docs/MEMORY_INDEX.yaml
+  - agent_docs/weights.default.yaml
+  - agent_docs/MEMORY.md
+  status: active
