@@ -63,6 +63,9 @@ loading everything at once.
 - `demo/`: A reproducible test methodology and the prompts used to compare a
   Meridian-equipped agent against a baseline agent on an identical task.
 
+- `CONTRIBUTING.md`: How to contribute, and maintainer setup for the private
+  `agent_docs/` submodule that holds Meridian's own development memory.
+
 The `weight_memory.py` script is defined in full in Appendix C of `BOOTSTRAP.md`. An
 agent can rebuild it from scratch on any repository using that specification.
 
