@@ -174,7 +174,7 @@ drives sequential step execution; the mandatory output line makes compliance obs
 
 Required checklist steps (in order):
    1. Read the Current State block — `[ ] Current State block read`
-   2. Load L1 Context + Compaction Protocol — regenerate if missing, then read `agent_docs/L1_CONTEXT.md` in full, then load skill: ptm-compaction — `[ ] L1_CONTEXT.md read in full`, `[ ] ptm-compaction skill loaded`
+   2. Load L1 Context + Compaction Protocol — regenerate if missing, then read `agent_docs/L1_CONTEXT.md` in full, then load skill: meridian-compaction — `[ ] L1_CONTEXT.md read in full`, `[ ] meridian-compaction skill loaded`
    3. Read most recent PROMPT_LOG session — `grep -n "^## Session:" agent_docs/PROMPT_LOG.md | tail -1` — `[ ] PROMPT_LOG session read`
    4. Confirm branch — `git branch --show-current` — `[ ] Branch identified, rules applied`
    5. Verify merge driver — `git config --local include.path` must output `../.gitconfig` — `[ ] Merge driver active`
