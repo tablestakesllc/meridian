@@ -131,6 +131,28 @@ def test_check_requires_memory_custody_rule(tmp_path, monkeypatch):
     assert any("memory-custody" in p for p in bsb.check())
 
 
+@pytest.mark.parametrize("drop", [bsb.CORE_OPEN, bsb.CORE_CLOSE])
+def test_check_requires_core_markers(tmp_path, monkeypatch, drop):
+    fake = _copy_templates(tmp_path)
+    path = fake / "agent_docs/MEMORY.md"
+    path.write_text("\n".join(ln for ln in path.read_text().splitlines() if ln.strip() != drop) + "\n")
+    monkeypatch.setattr(bsb, "TEMPLATES", fake)
+    assert any("meridian:core" in p for p in bsb.check())
+
+
+def test_check_rejects_core_drift_from_bootstrap(tmp_path, monkeypatch):
+    fake = _copy_templates(tmp_path)
+    path = fake / "agent_docs/MEMORY.md"
+    path.write_text(path.read_text().replace("**Git:** never push", "**Git:** a project rule slipped in. Never push"))
+    monkeypatch.setattr(bsb, "TEMPLATES", fake)
+    assert any("verbatim" in p for p in bsb.check())
+
+
+def test_core_block_is_published_in_bootstrap():
+    core = bsb.core_block((bsb.TEMPLATES / "agent_docs/MEMORY.md").read_text())
+    assert core and core in bsb.BOOTSTRAP.read_text()
+
+
 def test_pointer_block_is_thin_and_agent_neutral():
     lines = [ln.strip() for ln in (bsb.TEMPLATES / "agent_docs/AGENT_POINTER.md").read_text().splitlines()]
     block = "\n".join(lines[lines.index(bsb.POINTER_OPEN) + 1 : lines.index(bsb.POINTER_CLOSE)])

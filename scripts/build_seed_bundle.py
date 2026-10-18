@@ -75,6 +75,18 @@ HALT_OPEN = "<!-- latitude:halt -->"
 HALT_CLOSE = "<!-- /latitude:halt -->"
 POINTER_OPEN = "<!-- meridian:pointer -->"
 POINTER_CLOSE = "<!-- /meridian:pointer -->"
+CORE_OPEN = "<!-- meridian:core -->"
+CORE_CLOSE = "<!-- /meridian:core -->"
+
+
+def core_block(text: str) -> str | None:
+    """Return the text between the meridian:core markers, or None unless exactly one pair exists."""
+    lines = text.splitlines()
+    opens = [i for i, ln in enumerate(lines) if ln.strip() == CORE_OPEN]
+    closes = [i for i, ln in enumerate(lines) if ln.strip() == CORE_CLOSE]
+    if len(opens) != 1 or len(closes) != 1 or closes[0] < opens[0]:
+        return None
+    return "\n".join(lines[opens[0] + 1 : closes[0]])
 
 
 def extract_appendix(bootstrap: str, letter: str) -> str:
@@ -184,8 +196,20 @@ def check() -> list[str]:
     memory = (TEMPLATES / "agent_docs/MEMORY.md").read_text(encoding="utf-8")
     if not re.search(r"^## §0(\D|$)", memory, re.M):
         problems.append("MEMORY.md template lacks a '## §0' heading")
-    if "**Memory custody" not in memory:
-        problems.append("MEMORY.md template §0 lacks the memory-custody rule")
+    # §0 core rules: identical in every installation; project rules follow the closing marker.
+    core = core_block(memory)
+    if core is None:
+        problems.append(f"MEMORY.md template needs exactly one {CORE_OPEN} … {CORE_CLOSE} block")
+    else:
+        if "**Memory custody" not in core:
+            problems.append("MEMORY.md template core block lacks the memory-custody rule")
+        if any(FILL_OPEN_RE.match(ln) or FILL_CLOSE_RE.match(ln) for ln in core.splitlines()):
+            problems.append("MEMORY.md core block must not contain meridian:fill markers")
+        section = memory.split("## §0", 1)[-1].split("<!-- /block -->", 1)[0]
+        if CORE_OPEN not in section or CORE_CLOSE not in section:
+            problems.append("MEMORY.md core block must sit inside the §0 agent-operating-prefs block")
+        if core not in bootstrap:
+            problems.append("BOOTSTRAP.md Step 6 must publish the MEMORY.md core block verbatim")
 
     # Latitude appends the pointer block to an agent's auto-load file once and finds it later.
     pointer = [ln.strip() for ln in (TEMPLATES / "agent_docs/AGENT_POINTER.md").read_text(encoding="utf-8").splitlines()]

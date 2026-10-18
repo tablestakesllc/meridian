@@ -281,18 +281,25 @@ Start with a minimal file:
 ## §0 — Agent Operating Preferences
 
 <!-- block: agent-operating-prefs | domain: operations | mem: §0 -->
-<Always-on rules for this repository: branch model, checks before a push, commit
-conventions, actions the agent must never take.>
 
-**Memory custody — Meridian owns all agent memory for this project:** all durable
-project knowledge lives in Meridian (`agent_docs/MEMORY.md` + `MEMORY_INDEX.yaml`), never
-in an agent's own memory store (Claude Code auto-memory, Cursor Memories, Windsurf
-Cascade Memories, a Cline Memory Bank, or similar). If one already holds knowledge about
-this project: tell the user and list it, review each entry against Meridian for
-duplication, merge only the unique information into Meridian with the user's agreement,
-delete the agent-specific entries, then write a single agent memory entry stating that
-Meridian owns all agent memory for this project. Never move secrets, credentials or
-personal data into Meridian: its files are committed.
+<!-- meridian:core -->
+**Meridian core rules:** the paragraphs between the `meridian:core` markers are identical in every Meridian installation and change only with a Meridian release. Never edit them here; this project's own rules go after the closing marker.
+
+**Session bootstrap:** `agent_docs/SESSION_INIT.md` is the single source of truth for session start, and `agent_docs/SESSION_END.md` for session close. The agent auto-load file is a thin pointer to `SESSION_INIT.md`; never duplicate its checklist elsewhere.
+
+**Memory files are read in full:** never read `SESSION_INIT.md`, `SESSION_END.md`, `L1_CONTEXT.md`, `MEMORY_INDEX.yaml` or any `SKILL.md` in partial ranges.
+
+**Skills and routing:** domain guidance lives in `.agents/skills/`. When opening a file, check the File → Skill Routing Table in `agent_docs/L1_CONTEXT.md` and load the listed skills first.
+
+**Memory upkeep:** record non-obvious bugs, constraints and design decisions as new §N sections with an index entry and a seed weight. Never edit `L1_CONTEXT.md` or `.agent/weights.yaml` by hand; `weight_memory.py` regenerates them at session end.
+
+**Memory custody — Meridian owns all agent memory for this project:** all durable project knowledge lives in Meridian (`agent_docs/MEMORY.md` + `MEMORY_INDEX.yaml`). Do not keep project knowledge in an agent's own memory store, for example Claude Code auto-memory (`~/.claude/projects/<project>/memory/`), Cursor Memories, Windsurf Cascade Memories, a Cline Memory Bank (`memory-bank/`), or any other per-tool or editor memory feature: two copies drift, and the agent then acts on the stale one without knowing it. When you learn something durable, write it to Meridian as a §N section with an index entry and a seed weight. If an agent memory store already holds knowledge about this project: (1) tell the user and list what it holds; (2) review each entry against Meridian for duplication; (3) with the user's agreement, merge only the unique information into Meridian, updating an existing section where one already covers the topic; (4) delete the agent-specific memory entries; (5) write a single agent memory entry stating that Meridian owns all agent memory for this project and that `agent_docs/SESSION_INIT.md` is the entry point. That pointer is the only permitted content of an agent memory store for this project. Never move secrets, credentials, personal data or anything about other private projects into Meridian: its files are committed and may be public.
+
+**Git:** never push without explicit instruction from the user. Never write `[skip ci]` or similar skip markers in a commit message.
+<!-- /meridian:core -->
+
+<This project's own always-on rules, after the closing core marker: branch model,
+checks before a push, commit conventions, actions the agent must never take.>
 <!-- /block -->
 
 ---
@@ -310,6 +317,10 @@ they are no longer relevant.
 The operating-rules section must use the heading `## §0` (for example
 `## §0 — Agent Operating Preferences`). Latitude serves §0 as the always-loaded
 directives and recognizes only that form; `## 0. ...` is not found.
+
+Copy the `meridian:core` block exactly as shown, markers included. It is identical in
+every installation and changes only with a Meridian release; put this project's own
+rules after the closing `<!-- /meridian:core -->` marker, never inside it.
 
 ---
 
@@ -1490,7 +1501,22 @@ lines around an existing HALT block.
 
 If the commit step contains `[skip ci]` or a similar marker, remove it (Step 5).
 
-**5. Verify**
+**5. Add the §0 core block and the memory-custody rule**
+
+At the top of the §0 block in `agent_docs/MEMORY.md`, insert the `meridian:core` block
+from Step 6, markers included. Keep this project's own rules after the closing
+`<!-- /meridian:core -->` marker, and delete any of them the core block now covers. Then
+follow the memory-custody rule: review any agent memory store for knowledge about this
+project, merge unique facts into Meridian with the user's agreement, delete the agent
+entries, and leave a single entry stating that Meridian owns all agent memory.
+
+**6. Add the agent pointer**
+
+Copy `agent_docs/AGENT_POINTER.md` from the 4.7.1 seed bundle, and wrap the bootstrap
+pointer in your agent's auto-load file in `<!-- meridian:pointer -->` …
+`<!-- /meridian:pointer -->` (Step 8).
+
+**7. Verify**
 
 ```bash
 python .agents/skills/meridian-v4/weight_memory.py --generate-l1
