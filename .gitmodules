@@ -1,4 +1,4 @@
 [submodule "agent_docs"]
 	path = agent_docs
-	url = https://github.com/tablestakesllc/meridian_dev_memory.git
+	url = https://github.com/tablestakesllc/meridian-dev-memory.git
 	branch = main

@@ -12,7 +12,7 @@ git clone https://github.com/tablestakesllc/meridian.git
 ```
 
 Do not use `--recurse-submodules` unless you have access to
-`tablestakesllc/meridian_dev_memory`. Without access, that clone fails with an
+`tablestakesllc/meridian-dev-memory`. Without access, that clone fails with an
 authentication error on `agent_docs/`. The public files are unaffected.
 
 ---
