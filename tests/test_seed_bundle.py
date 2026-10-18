@@ -114,6 +114,33 @@ def test_check_requires_latitude_halt_markers(tmp_path, monkeypatch, drop):
     assert any("latitude:halt" in p for p in bsb.check())
 
 
+@pytest.mark.parametrize("drop", [bsb.POINTER_OPEN, bsb.POINTER_CLOSE])
+def test_check_requires_pointer_markers(tmp_path, monkeypatch, drop):
+    fake = _copy_templates(tmp_path)
+    path = fake / "agent_docs/AGENT_POINTER.md"
+    path.write_text("\n".join(ln for ln in path.read_text().splitlines() if ln.strip() != drop) + "\n")
+    monkeypatch.setattr(bsb, "TEMPLATES", fake)
+    assert any("meridian:pointer" in p for p in bsb.check())
+
+
+def test_check_requires_memory_custody_rule(tmp_path, monkeypatch):
+    fake = _copy_templates(tmp_path)
+    path = fake / "agent_docs/MEMORY.md"
+    path.write_text(path.read_text().replace("**Memory custody", "**Memory notes"))
+    monkeypatch.setattr(bsb, "TEMPLATES", fake)
+    assert any("memory-custody" in p for p in bsb.check())
+
+
+def test_pointer_block_is_thin_and_agent_neutral():
+    lines = [ln.strip() for ln in (bsb.TEMPLATES / "agent_docs/AGENT_POINTER.md").read_text().splitlines()]
+    block = "\n".join(lines[lines.index(bsb.POINTER_OPEN) + 1 : lines.index(bsb.POINTER_CLOSE)])
+    assert "agent_docs/SESSION_INIT.md" in block
+    assert "§0" in block  # points at the custody rule without repeating it
+    assert "**Memory custody" not in block
+    for agent_file in ("CLAUDE.md", "AGENTS.md", "copilot-instructions", ".clinerules", ".windsurfrules", ".cursor"):
+        assert agent_file not in block
+
+
 def test_halt_block_contains_redirect():
     lines = [ln.strip() for ln in (bsb.TEMPLATES / "agent_docs/SESSION_INIT.md").read_text().splitlines()]
     block = lines[lines.index(bsb.HALT_OPEN) + 1 : lines.index(bsb.HALT_CLOSE)]

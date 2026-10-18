@@ -58,6 +58,7 @@ FILES: dict[str, str] = {
     "agent_docs/MEMORY_INDEX.yaml": "knowledge",
     "agent_docs/weights.default.yaml": "knowledge",
     "agent_docs/PROMPT_LOG.md": "knowledge",
+    "agent_docs/AGENT_POINTER.md": "knowledge",
 }
 
 APPENDIX_SKILLS = {
@@ -72,6 +73,8 @@ FILL_OPEN_RE = re.compile(r'^\s*(?:<!--|#) meridian:fill id="([^"]+)"')
 FILL_CLOSE_RE = re.compile(r"^\s*(?:<!--|#) /meridian:fill")
 HALT_OPEN = "<!-- latitude:halt -->"
 HALT_CLOSE = "<!-- /latitude:halt -->"
+POINTER_OPEN = "<!-- meridian:pointer -->"
+POINTER_CLOSE = "<!-- /meridian:pointer -->"
 
 
 def extract_appendix(bootstrap: str, letter: str) -> str:
@@ -178,8 +181,22 @@ def check() -> list[str]:
             problems.append("SESSION_INIT.md latitude:halt block must contain the **HALT.** redirect")
         if any(FILL_OPEN_RE.match(ln) or FILL_CLOSE_RE.match(ln) for ln in halt):
             problems.append("SESSION_INIT.md latitude:halt block must not contain meridian:fill markers")
-    if not re.search(r"^## §0(\D|$)", (TEMPLATES / "agent_docs/MEMORY.md").read_text(), re.M):
+    memory = (TEMPLATES / "agent_docs/MEMORY.md").read_text(encoding="utf-8")
+    if not re.search(r"^## §0(\D|$)", memory, re.M):
         problems.append("MEMORY.md template lacks a '## §0' heading")
+    if "**Memory custody" not in memory:
+        problems.append("MEMORY.md template §0 lacks the memory-custody rule")
+
+    # Latitude appends the pointer block to an agent's auto-load file once and finds it later.
+    pointer = [ln.strip() for ln in (TEMPLATES / "agent_docs/AGENT_POINTER.md").read_text(encoding="utf-8").splitlines()]
+    if pointer.count(POINTER_OPEN) != 1 or pointer.count(POINTER_CLOSE) != 1:
+        problems.append(f"AGENT_POINTER.md needs exactly one {POINTER_OPEN} … {POINTER_CLOSE} block")
+    else:
+        block = pointer[pointer.index(POINTER_OPEN) + 1 : pointer.index(POINTER_CLOSE)]
+        if not any("agent_docs/SESSION_INIT.md" in ln for ln in block):
+            problems.append("AGENT_POINTER.md pointer block must point to agent_docs/SESSION_INIT.md")
+        if any(FILL_OPEN_RE.match(ln) or FILL_CLOSE_RE.match(ln) for ln in block):
+            problems.append("AGENT_POINTER.md pointer block must not contain meridian:fill markers")
     if re.search(r"^## Session: \d", (TEMPLATES / "agent_docs/PROMPT_LOG.md").read_text(), re.M):
         problems.append("PROMPT_LOG.md template contains a real session entry")
 

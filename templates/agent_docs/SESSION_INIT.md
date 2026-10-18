@@ -172,6 +172,7 @@ python .agents/skills/meridian-v4/weight_memory.py --seed
 | `agent_docs/weights.default.yaml` | Seed weights, thresholds, meridian_version, contract_version | Yes |
 | `agent_docs/L1_CONTEXT.md` | Auto-generated hot-load context | No (generated) |
 | `agent_docs/meridian-manifest.json` | Seed bundle manifest (installed version and file hashes) | Yes |
+| `agent_docs/AGENT_POINTER.md` | Source text for the agent auto-load file (`meridian:pointer` block) | Yes |
 | `.agents/skills/meridian-v4/weight_memory.py` | Weight manager script | Yes |
 | `.agents/skills/<dir>/SKILL.md` | Skills — core Meridian skills and domain skills | Yes |
 | `.agent/weights.yaml` | Per-developer live weights | No (gitignored) |

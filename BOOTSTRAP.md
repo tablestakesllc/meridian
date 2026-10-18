@@ -283,6 +283,16 @@ Start with a minimal file:
 <!-- block: agent-operating-prefs | domain: operations | mem: §0 -->
 <Always-on rules for this repository: branch model, checks before a push, commit
 conventions, actions the agent must never take.>
+
+**Memory custody — Meridian owns all agent memory for this project:** all durable
+project knowledge lives in Meridian (`agent_docs/MEMORY.md` + `MEMORY_INDEX.yaml`), never
+in an agent's own memory store (Claude Code auto-memory, Cursor Memories, Windsurf
+Cascade Memories, a Cline Memory Bank, or similar). If one already holds knowledge about
+this project: tell the user and list it, review each entry against Meridian for
+duplication, merge only the unique information into Meridian with the user's agreement,
+delete the agent-specific entries, then write a single agent memory entry stating that
+Meridian owns all agent memory for this project. Never move secrets, credentials or
+personal data into Meridian: its files are committed.
 <!-- /block -->
 
 ---
@@ -348,7 +358,11 @@ All bootstrap logic — L1 loading, PROMPT_LOG reading, branch confirmation, mer
 check, context swap reset — lives in the `SESSION_INIT.md` checklist, which is
 agent-agnostic and the single source of truth.
 
-The auto-load file must contain exactly one bootstrap instruction:
+The seed bundle ships the pointer text as `agent_docs/AGENT_POINTER.md`. Copy the block
+between its `<!-- meridian:pointer -->` and `<!-- /meridian:pointer -->` lines, markers
+included, to the top of your agent's auto-load file; the markers let tools find the
+pointer and avoid adding it twice. Latitude writes this file for you during setup.
+Without the bundle, the auto-load file must contain exactly one bootstrap instruction:
 
 ```markdown
 ## At the Start of Every New Conversation
