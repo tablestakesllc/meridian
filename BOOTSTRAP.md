@@ -205,11 +205,17 @@ Put the Latitude redirect at the head of the checklist, so agents that have the
 Latitude MCP tools call its `bootstrap` tool instead of running the steps by hand:
 
 ```markdown
+<!-- latitude:halt -->
 > **HALT.** Before you advance past this block, check your available MCP tools.
 > If `get_context_for_task` and `load_blocks` are in your tool list, Latitude is
 > running. Stop reading this file and call the `bootstrap` tool now.
 > Continue only when Latitude tools are absent.
+<!-- /latitude:halt -->
 ```
+
+Keep the `<!-- latitude:halt -->` and `<!-- /latitude:halt -->` lines exactly as shown.
+Latitude finds the redirect by these markers and warns when they are missing; the
+wording inside may change.
 
 ---
 
@@ -1460,8 +1466,10 @@ they are.
 **3. Check SESSION_INIT.md headings**
 
 Confirm `## Current State` and `## File Map` exist with those exact names, and that the
-File Map table has the columns `| File | Role | Committed? |`. Add the Latitude
-redirect block (Step 4) at the head of the checklist if you use Latitude.
+File Map table has the columns `| File | Role | Committed? |`. If you use Latitude,
+put the redirect block (Step 4) at the head of the checklist, wrapped in the
+`<!-- latitude:halt -->` … `<!-- /latitude:halt -->` marker lines; add the two marker
+lines around an existing HALT block.
 
 **4. Remove skip markers from SESSION_END.md**
 

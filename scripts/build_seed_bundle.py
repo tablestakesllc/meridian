@@ -72,6 +72,8 @@ APPENDIX_SKILLS = {
 VERSION_RE = re.compile(r"^\d+\.\d+\.\d+$")
 FILL_OPEN_RE = re.compile(r'^\s*(?:<!--|#) meridian:fill id="([^"]+)"')
 FILL_CLOSE_RE = re.compile(r"^\s*(?:<!--|#) /meridian:fill")
+HALT_OPEN = "<!-- latitude:halt -->"
+HALT_CLOSE = "<!-- /latitude:halt -->"
 
 
 def extract_appendix(bootstrap: str, letter: str) -> str:
@@ -165,9 +167,19 @@ def check() -> list[str]:
             problems.append(f"templates/{rel}: machine file must not carry meridian:fill markers")
 
     session_init = (TEMPLATES / "agent_docs/SESSION_INIT.md").read_text(encoding="utf-8")
-    for needle in ("## Current State", "HALT", "## File Map", "| File | Role | Committed? |"):
+    for needle in ("## Current State", "## File Map", "| File | Role | Committed? |"):
         if needle not in session_init:
             problems.append(f"SESSION_INIT.md template lacks {needle!r}")
+    # Latitude locates the redirect by these markers, not by its wording.
+    lines = [ln.strip() for ln in session_init.splitlines()]
+    if lines.count(HALT_OPEN) != 1 or lines.count(HALT_CLOSE) != 1:
+        problems.append(f"SESSION_INIT.md template needs exactly one {HALT_OPEN} … {HALT_CLOSE} block")
+    else:
+        halt = lines[lines.index(HALT_OPEN) + 1 : lines.index(HALT_CLOSE)]
+        if not halt or not any("**HALT.**" in ln for ln in halt):
+            problems.append("SESSION_INIT.md latitude:halt block must contain the **HALT.** redirect")
+        if any(FILL_OPEN_RE.match(ln) or FILL_CLOSE_RE.match(ln) for ln in halt):
+            problems.append("SESSION_INIT.md latitude:halt block must not contain meridian:fill markers")
     if not re.search(r"^## §0(\D|$)", (TEMPLATES / "agent_docs/MEMORY.md").read_text(), re.M):
         problems.append("MEMORY.md template lacks a '## §0' heading")
     if re.search(r"^## Session: \d", (TEMPLATES / "agent_docs/PROMPT_LOG.md").read_text(), re.M):

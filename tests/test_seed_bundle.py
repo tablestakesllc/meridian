@@ -97,6 +97,30 @@ def test_check_rejects_nested_fill_markers(tmp_path, monkeypatch):
     assert any("nested" in p for p in bsb.check())
 
 
+def _copy_templates(tmp_path):
+    fake = tmp_path / "templates"
+    for rel in bsb.FILES:
+        (fake / rel).parent.mkdir(parents=True, exist_ok=True)
+        (fake / rel).write_bytes((bsb.TEMPLATES / rel).read_bytes())
+    return fake
+
+
+@pytest.mark.parametrize("drop", [bsb.HALT_OPEN, bsb.HALT_CLOSE])
+def test_check_requires_latitude_halt_markers(tmp_path, monkeypatch, drop):
+    fake = _copy_templates(tmp_path)
+    path = fake / "agent_docs/SESSION_INIT.md"
+    path.write_text("\n".join(ln for ln in path.read_text().splitlines() if ln.strip() != drop) + "\n")
+    monkeypatch.setattr(bsb, "TEMPLATES", fake)
+    assert any("latitude:halt" in p for p in bsb.check())
+
+
+def test_halt_block_contains_redirect():
+    lines = [ln.strip() for ln in (bsb.TEMPLATES / "agent_docs/SESSION_INIT.md").read_text().splitlines()]
+    block = lines[lines.index(bsb.HALT_OPEN) + 1 : lines.index(bsb.HALT_CLOSE)]
+    assert any("**HALT.**" in ln for ln in block)
+    assert any("`bootstrap`" in ln for ln in block)
+
+
 def _git(cwd, *args):
     subprocess.run(["git", *args], cwd=cwd, check=True, capture_output=True)
 

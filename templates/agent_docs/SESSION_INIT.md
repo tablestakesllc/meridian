@@ -11,6 +11,7 @@
 
 # Session-Start Checklist
 
+<!-- latitude:halt -->
 > **HALT.** Before you advance past this block, check your available MCP tools.
 >
 > If `get_context_for_task` and `load_blocks` are in your tool list, Latitude is
@@ -21,6 +22,7 @@
 > GOOD: Finding the Latitude tools and calling the `bootstrap` tool.
 >
 > Continue only when Latitude tools are absent.
+<!-- /latitude:halt -->
 
 ---
 
