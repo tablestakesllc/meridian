@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Meridian pre-push gate. Enable once per clone:  git config core.hooksPath .githooks
+set -uo pipefail
+cd "$(git rev-parse --show-toplevel)" || exit 1
+
+# Maintainers only: full release guard (tree + every unpushed commit message).
+if [ -x agent_docs/tools/release_guard.sh ]; then
+  agent_docs/tools/release_guard.sh || { echo "pre-push: release guard failed — push blocked." >&2; exit 1; }
+fi

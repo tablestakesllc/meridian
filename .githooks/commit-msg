@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# Meridian commit-msg gate. Enable once per clone:  git config core.hooksPath .githooks
+set -uo pipefail
+cd "$(git rev-parse --show-toplevel)" || exit 1
+msg="$1"
+
+# Everyone: no CI skip markers. Squash merges copy branch messages into the merge
+# commit, so the main branch would skip its workflow.
+if grep -v -E '^#' "$msg" | grep -q -i -E '\[(skip ci|ci skip|no ci|skip actions|actions skip)\]|skip-checks: *true'; then
+  echo "commit-msg: remove the CI skip marker from the message — commit blocked." >&2
+  exit 1
+fi
+
+# Maintainers only: private release guard on the message text.
+if [ -x agent_docs/tools/release_guard.sh ]; then
+  agent_docs/tools/release_guard.sh --message "$msg" || { echo "commit-msg: message blocked by the release guard." >&2; exit 1; }
+fi

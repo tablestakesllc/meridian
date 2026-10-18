@@ -23,6 +23,23 @@ python -m pytest tests/ -q
 python scripts/build_seed_bundle.py --check
 ```
 
+### Git hooks
+
+The checks run as gates through the hooks in `.githooks/`. Enable them once per clone:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+| Hook | Blocks the commit or push when |
+|---|---|
+| `pre-commit` | tests fail, or the seed bundle checks fail |
+| `commit-msg` | the message contains a CI skip marker (`[skip ci]` and similar) |
+| `pre-push` | (maintainers) the release guard fails |
+
+The hooks use `python3` by default; set `MERIDIAN_PYTHON` to an interpreter that has
+`pyyaml` and `pytest`. Do not bypass a failing hook with `--no-verify`; fix the cause.
+
 ### Seed bundle templates
 
 `templates/` is the seed bundle: its paths mirror a target repository root.
@@ -88,13 +105,20 @@ git submodule update --init
 git -C agent_docs switch main
 ```
 
-### 2. Git settings
+### 2. Git settings and hooks
 
 ```bash
 git config push.recurseSubmodules check      # refuse a parent push that points at an unpushed submodule commit
 git config status.submoduleSummary true      # show unrecorded submodule commits in git status
 git config submodule.agent_docs.update rebase
+git config core.hooksPath .githooks          # public gates (see Git hooks above)
+git -C agent_docs config core.hooksPath tools/hooks   # submodule gate
 ```
+
+With `agent_docs/` present, the public hooks also run the release guard: on the tree
+at `pre-commit`, on the message at `commit-msg`, and on every unpushed commit at
+`pre-push`. The submodule's own `pre-commit` blocks internal names in staged private
+files and any core skill that differs from its `templates/` copy.
 
 ### 3. Create the local symlinks
 
