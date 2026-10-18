@@ -1,0 +1,35 @@
+# Pull request title and description checks. Required status check: "pr-text".
+#
+# With squash merges set to use the PR title and description as the commit message,
+# this is the only gate on the text that lands on main.
+name: pr-text
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-text-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  pr-text:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: No CI skip markers in the PR title or description
+        env:
+          # Passed through the environment, never interpolated into the script.
+          TITLE: ${{ github.event.pull_request.title }}
+          BODY: ${{ github.event.pull_request.body }}
+        run: |
+          markers='\[(skip ci|ci skip|no ci|skip actions|actions skip)\]|skip-checks: *true'
+          if printf '%s\n%s\n' "$TITLE" "$BODY" | grep -q -i -E "$markers"; then
+            echo "::error::Remove the CI skip marker from the PR title or description. The squash commit copies it to main and the main build would be skipped."
+            exit 1
+          fi
+          echo "PR text OK"

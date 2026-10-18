@@ -1,7 +1,7 @@
-# Meridian Agent Context and Memory System — Bootstrap Prompt (v4.7)
+# Meridian Agent Context and Memory System — Bootstrap Prompt (v4.7.1)
 
 > **How to use this file:**
-> Give this document to a fresh agent on any new repository to set up Meridian v4.7
+> Give this document to a fresh agent on any new repository to set up Meridian v4.7.1
 > from scratch. The agent should follow the steps in order. No prior Meridian knowledge
 > is required. All schemas and templates are included inline.
 
@@ -9,7 +9,7 @@
 
 ## What You Are Setting Up
 
-You are setting up the **Meridian Agent Context and Memory System (v4.7)** in this
+You are setting up the **Meridian Agent Context and Memory System (v4.7.1)** in this
 repository. Meridian is a file-native knowledge grounding system for AI coding agents.
 It has no server, no vector database, and no external API dependencies. Everything lives
 in the repository.
@@ -66,6 +66,17 @@ agent_docs/L1_CONTEXT.md
 > **Upgrading from an earlier version?** Skip to the **Upgrade Log** section at the
 > end of this file. Find the entry matching your current version and apply the steps
 > listed there before continuing with setup.
+
+> **Faster path — seed bundle.** Every release from 4.7.1 on attaches
+> `meridian-seed-<version>.tar.gz` and `manifest.json` to its GitHub release. The
+> bundle holds every file from Steps 1–7 and 11, with paths relative to the repository
+> root, `meridian:fill` markers where project details go, and
+> `agent_docs/meridian-manifest.json` listing each file's SHA-256. Extract it into the
+> repository root without overwriting existing files, append `.gitattributes.meridian`
+> to `.gitattributes` and `.gitignore.meridian` to `.gitignore`, replace every
+> `meridian:fill` marker, create your agent's auto-load file (Step 8), then continue
+> at Step 9. Meridian is agent-agnostic, so the bundle ships no agent-specific
+> auto-load file. Latitude users get this flow guided by the Latitude MCP server.
 
 Copy `weight_memory.py` from an existing Meridian installation into
 `.agents/skills/meridian-v4/weight_memory.py`.
@@ -128,6 +139,8 @@ Schema:
 meta:
   schema_version: 1
   description: "Default seed weights for <project name>"
+  meridian_version: "4.7.1"   # three-part; read by weight_memory.py for the L1 header
+  contract_version: 1         # Latitude compatibility; changes only on a breaking file-format change
   thresholds:
     l1: 8.0        # blocks at or above this weight are hot-loaded into L1_CONTEXT.md
     archive: 2.0   # blocks at or below this weight are flagged for review
@@ -185,8 +198,25 @@ Required checklist steps (in order):
 End the checklist with an **Edge Cases** section for first-time setup (missing
 `weights.yaml` or `L1_CONTEXT.md`) so those paths stay out of the normal flow.
 
-**3. File map table** describing each Meridian file and whether it is committed or
-   gitignored.
+**3. File map table** under the exact heading `## File Map`, with the columns
+   `| File | Role | Committed? |`, describing each Meridian file and whether it is
+   committed or gitignored. Latitude parses this heading and table.
+
+Put the Latitude redirect at the head of the checklist, so agents that have the
+Latitude MCP tools call its `bootstrap` tool instead of running the steps by hand:
+
+```markdown
+<!-- latitude:halt -->
+> **HALT.** Before you advance past this block, check your available MCP tools.
+> If `get_context_for_task` and `load_blocks` are in your tool list, Latitude is
+> running. Stop reading this file and call the `bootstrap` tool now.
+> Continue only when Latitude tools are absent.
+<!-- /latitude:halt -->
+```
+
+Keep the `<!-- latitude:halt -->` and `<!-- /latitude:halt -->` lines exactly as shown.
+Latitude finds the redirect by these markers and warns when they are missing; the
+wording inside may change.
 
 ---
 
@@ -220,12 +250,14 @@ This file is the session close checklist. It must instruct the agent to:
        --loaded "<comma-separated block IDs loaded this session>" \
        --date   "YYYY-MM-DD"
    ```
-6. Stage all changes and push in one commit:
+6. Stage the session's changes and commit:
    ```bash
-   git add -A
-   git commit -m "chore(docs): session-end [skip ci]"
-   git push
+   git add <files changed this session>
+   git commit -m "chore(docs): session-end"
    ```
+   Never put `[skip ci]` or a similar skip marker in the message: squash merges copy
+   branch commit messages into the merge commit, so the main branch would skip CI.
+   Push only when the user asks.
 
 ---
 
@@ -246,6 +278,32 @@ Start with a minimal file:
 
 ---
 
+## §0 — Agent Operating Preferences
+
+<!-- block: agent-operating-prefs | domain: operations | mem: §0 -->
+
+<!-- meridian:core -->
+**Meridian core rules:** the paragraphs between the `meridian:core` markers are identical in every Meridian installation and change only with a Meridian release. Never edit them here; this project's own rules go after the closing marker.
+
+**Session bootstrap:** `agent_docs/SESSION_INIT.md` is the single source of truth for session start, and `agent_docs/SESSION_END.md` for session close. The agent auto-load file is a thin pointer to `SESSION_INIT.md`; never duplicate its checklist elsewhere.
+
+**Memory files are read in full:** never read `SESSION_INIT.md`, `SESSION_END.md`, `L1_CONTEXT.md`, `MEMORY_INDEX.yaml` or any `SKILL.md` in partial ranges.
+
+**Skills and routing:** domain guidance lives in `.agents/skills/`. When opening a file, check the File → Skill Routing Table in `agent_docs/L1_CONTEXT.md` and load the listed skills first.
+
+**Memory upkeep:** record non-obvious bugs, constraints and design decisions as new §N sections with an index entry and a seed weight. Never edit `L1_CONTEXT.md` or `.agent/weights.yaml` by hand; `weight_memory.py` regenerates them at session end.
+
+**Memory custody — Meridian owns all agent memory for this project:** all durable project knowledge lives in Meridian (`agent_docs/MEMORY.md` + `MEMORY_INDEX.yaml`). Do not keep project knowledge in an agent's own memory store, for example Claude Code auto-memory (`~/.claude/projects/<project>/memory/`), Cursor Memories, Windsurf Cascade Memories, a Cline Memory Bank (`memory-bank/`), or any other per-tool or editor memory feature: two copies drift, and the agent then acts on the stale one without knowing it. When you learn something durable, write it to Meridian as a §N section with an index entry and a seed weight. If an agent memory store already holds knowledge about this project: (1) tell the user and list what it holds; (2) review each entry against Meridian for duplication; (3) with the user's agreement, merge only the unique information into Meridian, updating an existing section where one already covers the topic; (4) delete the agent-specific memory entries; (5) write a single agent memory entry stating that Meridian owns all agent memory for this project and that `agent_docs/SESSION_INIT.md` is the entry point. That pointer is the only permitted content of an agent memory store for this project. Never move secrets, credentials, personal data or anything about other private projects into Meridian: its files are committed and may be public.
+
+**Git:** never push without explicit instruction from the user. Never write `[skip ci]` or similar skip markers in a commit message.
+<!-- /meridian:core -->
+
+<This project's own always-on rules, after the closing core marker: branch model,
+checks before a push, commit conventions, actions the agent must never take.>
+<!-- /block -->
+
+---
+
 ## 1. <First topic>
 
 **Added:** <date>
@@ -255,6 +313,14 @@ Start with a minimal file:
 
 Sections are numbered sequentially. Do not delete sections — mark them deprecated if
 they are no longer relevant.
+
+The operating-rules section must use the heading `## §0` (for example
+`## §0 — Agent Operating Preferences`). Latitude serves §0 as the always-loaded
+directives and recognizes only that form; `## 0. ...` is not found.
+
+Copy the `meridian:core` block exactly as shown, markers included. It is identical in
+every installation and changes only with a Meridian release; put this project's own
+rules after the closing `<!-- /meridian:core -->` marker, never inside it.
 
 ---
 
@@ -303,7 +369,11 @@ All bootstrap logic — L1 loading, PROMPT_LOG reading, branch confirmation, mer
 check, context swap reset — lives in the `SESSION_INIT.md` checklist, which is
 agent-agnostic and the single source of truth.
 
-The auto-load file must contain exactly one bootstrap instruction:
+The seed bundle ships the pointer text as `agent_docs/AGENT_POINTER.md`. Copy the block
+between its `<!-- meridian:pointer -->` and `<!-- /meridian:pointer -->` lines, markers
+included, to the top of your agent's auto-load file; the markers let tools find the
+pointer and avoid adding it twice. Latitude writes this file for you during setup.
+Without the bundle, the auto-load file must contain exactly one bootstrap instruction:
 
 ```markdown
 ## At the Start of Every New Conversation
@@ -1393,6 +1463,68 @@ Wipe context_swap.json:
 >
 > **Format:** Each entry lists the installed version being upgraded FROM, and the
 > concrete file changes required. The agent applies them in order, top to bottom.
+
+---
+
+### v4.7 → v4.7.1 — Seed Bundle and Contract Version (2026-10-17)
+
+**Check your installed version:** `grep meridian_version agent_docs/weights.default.yaml`
+
+**Change:** Structural release. No skill or script behavior changes; the core skills in
+Appendices A–D are unchanged. Releases now use three-part versions, declare the
+Latitude contract version, and ship a seed bundle. Applies to all v4.7 installations.
+
+**1. Set version and contract version**
+
+In `agent_docs/weights.default.yaml`:
+```yaml
+meta:
+  meridian_version: "4.7.1"
+  contract_version: 1
+```
+
+**2. Use the `## §0` heading**
+
+If `agent_docs/MEMORY.md` names its operating-rules section `## 0. ...`, rename the
+heading to `## §0 — <same title>`. Leave the section's content and block annotation as
+they are.
+
+**3. Check SESSION_INIT.md headings**
+
+Confirm `## Current State` and `## File Map` exist with those exact names, and that the
+File Map table has the columns `| File | Role | Committed? |`. If you use Latitude,
+put the redirect block (Step 4) at the head of the checklist, wrapped in the
+`<!-- latitude:halt -->` … `<!-- /latitude:halt -->` marker lines; add the two marker
+lines around an existing HALT block.
+
+**4. Remove skip markers from SESSION_END.md**
+
+If the commit step contains `[skip ci]` or a similar marker, remove it (Step 5).
+
+**5. Add the §0 core block and the memory-custody rule**
+
+At the top of the §0 block in `agent_docs/MEMORY.md`, insert the `meridian:core` block
+from Step 6, markers included. Keep this project's own rules after the closing
+`<!-- /meridian:core -->` marker, and delete any of them the core block now covers. Then
+follow the memory-custody rule: review any agent memory store for knowledge about this
+project, merge unique facts into Meridian with the user's agreement, delete the agent
+entries, and leave a single entry stating that Meridian owns all agent memory.
+
+**6. Add the agent pointer**
+
+Copy `agent_docs/AGENT_POINTER.md` from the 4.7.1 seed bundle, and wrap the bootstrap
+pointer in your agent's auto-load file in `<!-- meridian:pointer -->` …
+`<!-- /meridian:pointer -->` (Step 8).
+
+**7. Verify**
+
+```bash
+python .agents/skills/meridian-v4/weight_memory.py --generate-l1
+head -1 agent_docs/L1_CONTEXT.md
+```
+
+The L1 header shows `(4.7.1)`. Run the shake-down if you use Latitude and confirm its
+bootstrap no longer reports §0 or the File Map as missing.
 
 ---
 

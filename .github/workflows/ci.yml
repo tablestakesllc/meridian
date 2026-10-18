@@ -1,0 +1,42 @@
+# Tests and seed bundle checks. Required status check: "test".
+#
+# Resource rules (repo settings + this file):
+# - Workflows on pull requests from anyone outside the org/collaborators wait for
+#   maintainer approval (Settings > Actions: "all external contributors").
+# - Triggers are pull_request and push to main only. Never pull_request_target,
+#   issue_comment, issues or schedule.
+# - Read-only token, no secrets, no submodules (agent_docs/ is private), GitHub-owned
+#   actions pinned by SHA, 10-minute timeout, superseded runs cancelled.
+name: ci
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: false
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Install test dependencies
+        run: python -m pip install --disable-pip-version-check -r requirements-dev.txt
+      - name: Tests
+        run: python -m pytest tests/ -q
+      - name: Seed bundle checks
+        run: python scripts/build_seed_bundle.py --check

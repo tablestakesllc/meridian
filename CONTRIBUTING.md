@@ -15,6 +15,89 @@ Do not use `--recurse-submodules` unless you have access to
 `tablestakesllc/meridian-dev-memory`. Without access, that clone fails with an
 authentication error on `agent_docs/`. The public files are unaffected.
 
+### Tests
+
+```bash
+pip install -r requirements-dev.txt
+python -m pytest tests/ -q
+python scripts/build_seed_bundle.py --check
+```
+
+CI runs the same checks on every pull request to `main` and every push to it
+(`.github/workflows/ci.yml`, check name `test`), and checks the PR title and
+description for CI skip markers (`pr-text.yml`, check name `pr-text`). Workflows on
+pull requests from contributors outside the organization wait for a maintainer to
+approve the run. `tests/test_workflows.py` enforces the workflow rules: only
+`pull_request` and `push` triggers, read-only tokens, GitHub-owned actions pinned by
+commit SHA, hosted runners with timeouts, and no PR text interpolated into scripts.
+
+### Git hooks
+
+The checks run as gates through the hooks in `.githooks/`. Enable them once per clone:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+| Hook | Blocks the commit or push when |
+|---|---|
+| `pre-commit` | tests fail, or the seed bundle checks fail |
+| `commit-msg` | the message contains a CI skip marker (`[skip ci]` and similar) |
+| `pre-push` | (maintainers) the release guard fails |
+
+The hooks use `python3` by default; set `MERIDIAN_PYTHON` to an interpreter that has
+`pyyaml` and `pytest`. Do not bypass a failing hook with `--no-verify`; fix the cause.
+
+### Seed bundle templates
+
+`templates/` is the seed bundle: its paths mirror a target repository root.
+
+- **Core files** (`kind: machine` in the manifest) ship verbatim and must be identical
+  in every installation. The three core skills and `REBUILD_SPEC.md` are generated from
+  `BOOTSTRAP.md` Appendices A–D: edit the appendix, then run
+  `python scripts/build_seed_bundle.py --sync-skills`. The build fails if they drift.
+- **Knowledge files** are templates. Every part the installing agent must write is
+  wrapped in a `meridian:fill` marker (`<!-- meridian:fill id="..." -->` …
+  `<!-- /meridian:fill -->`, or `# meridian:fill id="..."` … `# /meridian:fill` in
+  YAML). Markers never nest and carry an instruction, never real content.
+- Every file in `templates/` must be listed in `FILES` in
+  `scripts/build_seed_bundle.py`.
+
+---
+
+## Releases
+
+Meridian uses SemVer with three-part tags (`vX.Y.Z`) from 4.7.0 on.
+
+1. Set `meta.meridian_version` in `templates/agent_docs/weights.default.yaml`, add an
+   Upgrade Log entry to `BOOTSTRAP.md`, and add a row to the README versions table.
+2. If the release makes a change the Latitude ↔ Meridian contract lists as
+   **Breaking**, bump `meta.contract_version` there and `CONTRACT_VERSION` in
+   `scripts/build_seed_bundle.py`, and update the contract's compatibility matrix in
+   the Latitude repo in the same release. Otherwise leave both unchanged.
+3. Build locally and check the result:
+   ```bash
+   python scripts/build_seed_bundle.py
+   ```
+   This writes `dist/meridian-seed-<version>.tar.gz` and `dist/manifest.json` and prints
+   the bundle's SHA-256. The build is reproducible: the same templates give the same bytes.
+   `dist/` is gitignored; bundles are never committed.
+4. Maintainers run the release guard on the tree and the bundle (see below).
+5. Merge the release PR, then tag `main`:
+   ```bash
+   git tag vX.Y.Z origin/main && git push origin vX.Y.Z
+   ```
+   The `release` workflow runs the tests, checks the tag matches
+   `meta.meridian_version`, builds the bundle twice to confirm it is reproducible, and
+   creates a **draft** release with `meridian-seed-X.Y.Z.tar.gz` and `manifest.json`
+   attached. The release notes carry the bundle's SHA-256.
+6. Compare the draft's SHA-256 with your local build from step 3, then publish the draft.
+   Once published, the release is immutable.
+7. Give Latitude the new version and the bundle SHA-256 if it should pin this release.
+
+Every release ships a bundle and manifest. A release without them is incomplete.
+Release assets live on the GitHub release only, not in git and not in GitHub Packages.
+
 ---
 
 ## Maintainer Setup
@@ -36,13 +119,20 @@ git submodule update --init
 git -C agent_docs switch main
 ```
 
-### 2. Git settings
+### 2. Git settings and hooks
 
 ```bash
 git config push.recurseSubmodules check      # refuse a parent push that points at an unpushed submodule commit
 git config status.submoduleSummary true      # show unrecorded submodule commits in git status
 git config submodule.agent_docs.update rebase
+git config core.hooksPath .githooks          # public gates (see Git hooks above)
+git -C agent_docs config core.hooksPath tools/hooks   # submodule gate
 ```
+
+With `agent_docs/` present, the public hooks also run the release guard: on the tree
+at `pre-commit`, on the message at `commit-msg`, and on every unpushed commit at
+`pre-push`. The submodule's own `pre-commit` blocks internal names in staged private
+files and any core skill that differs from its `templates/` copy.
 
 ### 3. Create the local symlinks
 
@@ -125,6 +215,10 @@ Merge drivers are per repository. The submodule carries its own
 ## Public Repo Changes and Releases
 
 Changes to the public files go through a branch and a pull request to `main`.
+`main` holds version releases only, and pull requests are **squash merged**: the PR
+title becomes the commit title and the PR description becomes the commit message, so
+write both for the public record. Merge commits and rebase merges are disabled, and the
+branch is deleted after the merge.
 
 Maintainer memory never enters the public repo or a release. That covers
 everything under `agent_docs/`: memory, skills, session logs, development notes

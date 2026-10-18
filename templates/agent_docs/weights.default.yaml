@@ -1,0 +1,39 @@
+# Meridian — Default Block Weights (v4.1)
+#
+# Maintainer-curated seed weights. Committed; shared by all contributors.
+#
+#   --seed            creates .agent/weights.yaml from these values on first boot
+#   --check-defaults  diffs a contributor's local weights against these values
+#
+# CATEGORIES:
+#   operational   Every contributor needs these on day one. Seed >= thresholds.l1 (L1 from the start).
+#   domain        Project-specific knowledge. Seed 5.5–7.0.
+#   general       Neutral cold-start. Seed 5.0.
+
+meta:
+  schema_version: 1
+  meridian_version: "4.7.1"
+  contract_version: 1
+  thresholds:
+    l1: 8.0
+    archive: 2.0
+  delta:
+    loaded_used: 0.10
+    loaded_skipped: 0.00
+    not_loaded: -0.05
+  maintenance_interval: 30
+  export_promote_threshold: 1.5
+  export_demote_threshold: 3.0
+  calibration_baseline_rate: 0.5
+  calibration_window_days: 90
+
+blocks:
+  - id: agent-operating-prefs
+    seed_weight: 9.0
+    category: operational
+    reason: "Operating rules load every session so L1 is never empty"
+
+  - id: meridian-memory-files
+    seed_weight: 5.0
+    category: general
+    reason: "Routes the memory files to the meridian-v4 skill"

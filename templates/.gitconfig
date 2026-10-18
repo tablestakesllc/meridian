@@ -1,0 +1,3 @@
+[merge "union"]
+	name = union merge driver
+	driver = git merge-file --union %O %A %B
