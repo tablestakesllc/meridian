@@ -69,13 +69,14 @@ agent_docs/L1_CONTEXT.md
 
 > **Faster path — seed bundle.** Every release from 4.7.1 on attaches
 > `meridian-seed-<version>.tar.gz` and `manifest.json` to its GitHub release. The
-> bundle holds every file from Steps 1–8 and 11, with paths relative to the repository
+> bundle holds every file from Steps 1–7 and 11, with paths relative to the repository
 > root, `meridian:fill` markers where project details go, and
 > `agent_docs/meridian-manifest.json` listing each file's SHA-256. Extract it into the
 > repository root without overwriting existing files, append `.gitattributes.meridian`
 > to `.gitattributes` and `.gitignore.meridian` to `.gitignore`, replace every
-> `meridian:fill` marker, then continue at Step 9. Latitude users get this flow
-> guided by the Latitude MCP server.
+> `meridian:fill` marker, create your agent's auto-load file (Step 8), then continue
+> at Step 9. Meridian is agent-agnostic, so the bundle ships no agent-specific
+> auto-load file. Latitude users get this flow guided by the Latitude MCP server.
 
 Copy `weight_memory.py` from an existing Meridian installation into
 `.agents/skills/meridian-v4/weight_memory.py`.
