@@ -58,7 +58,6 @@ FILES: dict[str, str] = {
     "agent_docs/MEMORY_INDEX.yaml": "knowledge",
     "agent_docs/weights.default.yaml": "knowledge",
     "agent_docs/PROMPT_LOG.md": "knowledge",
-    ".clinerules/latitude.md": "knowledge",
 }
 
 APPENDIX_SKILLS = {

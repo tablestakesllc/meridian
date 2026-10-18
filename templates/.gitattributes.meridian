@@ -2,7 +2,6 @@
 # LF line endings keep content hashes identical across platforms.
 agent_docs/**                text eol=lf
 .agents/skills/**            text eol=lf
-.clinerules/latitude.md      text eol=lf
 .agents/skills/**/*.py       text eol=lf
 
 # Union merge keeps both sides of append-only and block-structured memory files.
