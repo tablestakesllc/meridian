@@ -1,0 +1,8 @@
+# Meridian per-developer state (see BOOTSTRAP.md)
+.agent/
+agent_docs/L1_CONTEXT.md
+
+# Local symlinks into the private agent_docs/ submodule (see CONTRIBUTING.md).
+# No trailing slash: a trailing slash would not match a symlink.
+.agents
+.claude
